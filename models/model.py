@@ -76,6 +76,9 @@ class Decoder(torch.nn.Module):
         edge_index -- edge index [2, num_edges]
         edge_attr -- edge features [num_edges, num_edge_features]
         """
+        print('lower.size()=', lower.size())
+        print('upper.size()=', upper.size())
+        print('x.size()=', x.size())
         x = torch.cat([x, lower, upper], dim=1)
         out = self.conv1(x, edge_index, edge_attr)
         out = self.conv2(out, edge_index, edge_attr)
@@ -130,21 +133,25 @@ class HandNet(torch.nn.Module):
         # z = torch.cat([l_hand_z, r_hand_z], dim=0)
         return z
 
-    def decode(self, z, target):
-        edge_index = torch.cat([target.hand_edge_index, target.hand_edge_index+z.size(0)//2], dim=1)
+    def decode(self, z: torch.Tensor, target):
+        print('HandNet')
+        print(z.size())
+        print(target)
+        edge_index = torch.cat([target.hand_edge_index,
+                                target.hand_edge_index + z.size(0) // 2], dim=1)
         edge_attr = torch.cat([target.hand_edge_attr, target.hand_edge_attr], dim=0)
         lower = torch.cat([target.hand_lower, target.hand_lower], dim=0)
         upper = torch.cat([target.hand_upper, target.hand_upper], dim=0)
         offset = torch.cat([target.hand_offset, target.hand_offset], dim=0)
         parent = torch.cat([target.hand_parent, target.hand_parent], dim=0)
-        num_graphs = 2*target.num_graphs
+        num_graphs = 2 * target.num_graphs
         axis = torch.cat([target.hand_axis, target.hand_axis], dim=0)
 
         hand_ang = self.decoder(z, edge_index, edge_attr, lower, upper)
-        hand_ang = lower + (upper - lower)*(hand_ang + 1)/2
+        hand_ang = lower + (upper - lower) * (hand_ang + 1) / 2
         hand_pos, _, _ = self.fk(hand_ang, parent, offset, num_graphs, axis)
 
-        half = hand_ang.size(0)//2
+        half = hand_ang.size(0) // 2
         l_hand_ang, r_hand_ang = hand_ang[:half, :], hand_ang[half:, :]
         l_hand_pos, r_hand_pos = hand_pos[:half, :], hand_pos[half:, :]
         # half = z.shape[0] // 2

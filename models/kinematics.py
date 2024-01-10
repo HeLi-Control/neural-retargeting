@@ -129,15 +129,15 @@ class ForwardKinematicsAxis(nn.Module):
 
             # position
             if parent_idx != -1:
-                positions[:, node_idx, :] = torch.bmm(rot_matrices[:, parent_idx, :, :],
-                                                      xyz[:, node_idx, :].unsqueeze(2)).squeeze() + positions[:,
-                                                                                                    parent_idx, :]
-                global_positions[:, node_idx, :] = torch.bmm(rot_matrices[:, parent_idx, :, :],
-                                                             xyz[:, node_idx, :].unsqueeze(
-                                                                 2)).squeeze() + global_positions[:, parent_idx, :]
-                rot_matrices[:, node_idx, :, :] = torch.bmm(rot_matrices[:, parent_idx, :, :].clone(),
-                                                            torch.bmm(rpy_transform[:, node_idx, :, :],
-                                                                      transform[:, node_idx, :, :]))
+                positions[:, node_idx, :] = torch.bmm(
+                    rot_matrices[:, parent_idx, :, :],
+                    xyz[:, node_idx, :].unsqueeze(2)).squeeze() + positions[:, parent_idx, :]
+                global_positions[:, node_idx, :] = (torch.bmm(
+                    rot_matrices[:, parent_idx, :, :],
+                    xyz[:, node_idx, :].unsqueeze(2)).squeeze() + global_positions[:, parent_idx, :])
+                rot_matrices[:, node_idx, :, :] = torch.bmm(
+                    rot_matrices[:, parent_idx, :, :].clone(),
+                    torch.bmm(rpy_transform[:, node_idx, :, :], transform[:, node_idx, :, :]))
             else:
                 positions[:, node_idx, :] = torch.zeros(3)  # xyz[:, node_idx, :]
                 global_positions[:, node_idx, :] = xyz[:, node_idx, :]

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch_geometric.transforms as transforms
-from torch_geometric.data import Batch, DataListLoader
+from torch_geometric.loader import Batch, DataListLoader
 from tensorboardX import SummaryWriter
 import numpy as np
 import h5py

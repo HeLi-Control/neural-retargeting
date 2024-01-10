@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch_geometric.transforms as transforms
-from torch_geometric.data import DataListLoader
+from torch_geometric.loader import DataListLoader
 from tensorboardX import SummaryWriter
 
 from models import model
 from models.loss import CollisionLoss, JointLimitLoss, RegLoss
 import dataset
-from dataset import Normalize
+from dataset import *
 from train import train_epoch
 from test import test_epoch
 from utils.config import cfg
@@ -28,7 +28,6 @@ args = parser.parse_args()
 # Configurations parse
 cfg.merge_from_file(args.cfg)
 cfg.freeze()
-print(cfg)
 
 # Create folder
 create_folder(cfg.OTHERS.SAVE)
@@ -38,7 +37,7 @@ create_folder(cfg.OTHERS.SUMMARY)
 # Create logger & tensorboard writer
 logging.basicConfig(level=logging.INFO, format="%(message)s",
                     handlers=[logging.FileHandler(os.path.join(cfg.OTHERS.LOG,
-                                                               "{:%Y-%m-%d_%H-%M-%S}.log"\
+                                                               "{:%Y-%m-%d_%H-%M-%S}.log"
                                                                .format(datetime.now()))),
                               logging.StreamHandler()])
 logger = logging.getLogger()
@@ -54,7 +53,7 @@ if __name__ == '__main__':
     train_set = (getattr(dataset, cfg.DATASET.TRAIN.SOURCE_NAME)
                  (root=cfg.DATASET.TRAIN.SOURCE_PATH, pre_transform=pre_transform))
     train_loader = DataListLoader(train_set, batch_size=cfg.HYPER.BATCH_SIZE, shuffle=True,
-                                  num_workers=16, pin_memory=True)
+                                  num_workers=8, pin_memory=True)
     train_target = sorted([target for target in
                            getattr(dataset, cfg.DATASET.TRAIN.TARGET_NAME)
                            (root=cfg.DATASET.TRAIN.TARGET_PATH)],
@@ -62,7 +61,7 @@ if __name__ == '__main__':
     test_set = (getattr(dataset, cfg.DATASET.TEST.SOURCE_NAME)
                 (root=cfg.DATASET.TEST.SOURCE_PATH, pre_transform=pre_transform))
     test_loader = DataListLoader(test_set, batch_size=cfg.HYPER.BATCH_SIZE, shuffle=True,
-                                 num_workers=16, pin_memory=True)
+                                 num_workers=8, pin_memory=True)
     test_target = sorted([target for target in
                           getattr(dataset, cfg.DATASET.TEST.TARGET_NAME)
                           (root=cfg.DATASET.TEST.TARGET_PATH)],
@@ -112,4 +111,4 @@ if __name__ == '__main__':
             best_loss = test_loss
             torch.save(model.state_dict(), os.path.join(
                 cfg.OTHERS.SAVE, "best_model_epoch_{:04d}.pth".format(epoch)))
-            logger.info("Epoch {} Model Saved".format(epoch+1).center(60, '-'))
+            logger.info("Epoch {} Model Saved".format(epoch + 1).center(60, '-'))
