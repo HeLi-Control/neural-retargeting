@@ -32,6 +32,8 @@ _C.LOSS.LIM = False
 _C.LOSS.ORI = False
 _C.LOSS.FIN = False
 _C.LOSS.REG = False
+_C.LOSS.LOSS_USING_GAIN = False
+_C.LOSS.LOSS_GAIN = None
 
 _C.INFERENCE = CN()
 _C.INFERENCE.MOTION = CN()

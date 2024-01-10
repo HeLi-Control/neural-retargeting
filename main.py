@@ -1,7 +1,5 @@
-import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch_geometric.transforms as transforms
 from torch_geometric.loader import DataListLoader
 from tensorboardX import SummaryWriter
 
@@ -96,15 +94,30 @@ if __name__ == '__main__':
     best_loss = float('Inf')
 
     for epoch in range(cfg.HYPER.EPOCHS):
-        # Start training
-        train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion,
-                                 lim_criterion, ori_criterion, fin_criterion, reg_criterion,
-                                 optimizer, train_loader, train_target, epoch, logger,
-                                 cfg.OTHERS.LOG_INTERVAL, writer, device)
-        # Start testing
-        test_loss = test_epoch(model, ee_criterion, vec_criterion, col_criterion,
-                               lim_criterion, ori_criterion, fin_criterion, reg_criterion,
-                               test_loader, test_target, epoch, logger, writer, device)
+        if cfg.LOSS.LOSS_USING_GAIN:
+            # Start training
+            train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion,
+                                     lim_criterion, ori_criterion, fin_criterion,
+                                     reg_criterion, optimizer, train_loader, train_target,
+                                     epoch, logger, cfg.OTHERS.LOG_INTERVAL, writer, device,
+                                     torch.tensor(cfg.LOSS.LOSS_GAIN))
+            # Start testing
+            test_loss = test_epoch(model, ee_criterion, vec_criterion, col_criterion,
+                                   lim_criterion, ori_criterion, fin_criterion, reg_criterion,
+                                   test_loader, test_target, epoch, logger, writer, device,
+                                   torch.tensor(cfg.LOSS.LOSS_GAIN))
+        else:
+            # Start training
+            train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion,
+                                     lim_criterion, ori_criterion, fin_criterion,
+                                     reg_criterion, optimizer, train_loader, train_target,
+                                     epoch, logger, cfg.OTHERS.LOG_INTERVAL, writer, device,
+                                     loss_gain=None)
+            # Start testing
+            test_loss = test_epoch(model, ee_criterion, vec_criterion, col_criterion,
+                                   lim_criterion, ori_criterion, fin_criterion, reg_criterion,
+                                   test_loader, test_target, epoch, logger, writer, device,
+                                   loss_gain=None)
         # Save model
         if test_loss < best_loss:
             best_loss = test_loss

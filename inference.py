@@ -145,9 +145,18 @@ if __name__ == '__main__':
     # latent optimization
     decode_start_time = time.time()
     for epoch in range(cfg.HYPER.EPOCHS):
-        train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion, ori_criterion,
-                                 fin_criterion, reg_criterion, optimizer, test_loader, test_target, epoch, logger,
-                                 cfg.OTHERS.LOG_INTERVAL, writer, device, z_all)
+        if cfg.LOSS.LOSS_USING_GAIN:
+            train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion,
+                                     lim_criterion, ori_criterion, fin_criterion,
+                                     reg_criterion, optimizer, test_loader, test_target,
+                                     epoch, logger, cfg.OTHERS.LOG_INTERVAL, writer, device,
+                                     torch.tensor(cfg.LOSS.LOSS_GAIN), z_all)
+        else:
+            train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion,
+                                     lim_criterion, ori_criterion, fin_criterion,
+                                     reg_criterion, optimizer, test_loader, test_target,
+                                     epoch, logger, cfg.OTHERS.LOG_INTERVAL, writer, device,
+                                     loss_gain=None, z_all=z_all)
         if cfg.INFERENCE.MOTION.KEY:
             # Save model
             if train_loss > best_loss:

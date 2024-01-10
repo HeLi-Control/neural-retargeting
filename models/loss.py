@@ -6,9 +6,9 @@ from kornia.geometry.conversions import quaternion_to_rotation_matrix
 def calculate_all_loss(data_list, target_list, ee_criterion, vec_criterion, col_criterion,
                        lim_criterion, ori_criterion, fin_criterion, reg_criterion, z,
                        target_ang, target_pos, target_rot, target_global_pos, l_hand_pos,
-                       r_hand_pos, all_losses=None, ee_losses=None, vec_losses=None,
-                       col_losses=None, lim_losses=None, ori_losses=None, fin_losses=None,
-                       reg_losses=None):
+                       r_hand_pos, loss_gain=None, all_losses=None, ee_losses=None,
+                       vec_losses=None, col_losses=None, lim_losses=None, ori_losses=None,
+                       fin_losses=None, reg_losses=None):
     """
     Calculate All Loss
     """
@@ -29,68 +29,71 @@ def calculate_all_loss(data_list, target_list, ee_criterion, vec_criterion, col_
         ee_losses = []
     if all_losses is None:
         all_losses = []
+    if loss_gain is None:
+        loss_gain = torch.tensor([[1], [1], [1], [1], [1], [1], [1]])
     if ee_criterion:
-        ee_loss = calculate_ee_loss(data_list, target_list, target_pos, ee_criterion) * 1000
+        ee_loss = (calculate_ee_loss(data_list, target_list, target_pos, ee_criterion) *
+                   1000 * float(loss_gain[0]))
         ee_losses.append(ee_loss.item())
     else:
         ee_loss = 0
         ee_losses.append(0)
-
     # vector loss
     if vec_criterion:
-        vec_loss = calculate_vec_loss(data_list, target_list, target_pos, vec_criterion) * 100
+        vec_loss = (calculate_vec_loss(data_list, target_list, target_pos, vec_criterion) *
+                    100 * float(loss_gain[1]))
         vec_losses.append(vec_loss.item())
     else:
         vec_loss = 0
         vec_losses.append(0)
-
     # collision loss
     if col_criterion:
-        col_loss = col_criterion(
+        col_loss = (col_criterion(
             target_global_pos.view(len(target_list), -1, 3), target_list[0].edge_index,
-            target_rot.view(len(target_list), -1, 9), target_list[0].ee_mask) * 1000
+            target_rot.view(len(target_list), -1, 9), target_list[0].ee_mask) *
+                    10000 * float(loss_gain[2]))
         col_losses.append(col_loss.item())
     else:
         col_loss = 0
         col_losses.append(0)
-
+    print(col_loss)
     # joint limit loss
     if lim_criterion:
-        lim_loss = calculate_lim_loss(target_list, target_ang, lim_criterion) * 10000
+        lim_loss = (calculate_lim_loss(target_list, target_ang, lim_criterion) * 100000 *
+                    float(loss_gain[3]))
         lim_losses.append(lim_loss.item())
     else:
         lim_loss = 0
         lim_losses.append(0)
-
+    print(lim_loss)
     # end effector orientation loss
     if ori_criterion:
-        ori_loss = calculate_ori_loss(data_list, target_list, target_rot, ori_criterion) * 100
+        ori_loss = (calculate_ori_loss(data_list, target_list, target_rot, ori_criterion) *
+                    1000 * float(loss_gain[4]))
         ori_losses.append(ori_loss.item())
     else:
         ori_loss = 0
         ori_losses.append(0)
-
     # finger similarity loss
     if fin_criterion:
-        fin_loss = calculate_fin_loss(data_list, target_list, l_hand_pos, r_hand_pos, fin_criterion) * 100
+        fin_loss = calculate_fin_loss(data_list, target_list, l_hand_pos, r_hand_pos,
+                                      fin_criterion) * 100 * float(loss_gain[5])
         fin_losses.append(fin_loss.item())
     else:
         fin_loss = 0
         fin_losses.append(0)
-
     # regularization loss
     if reg_criterion:
-        reg_loss = reg_criterion(z.view(len(target_list), -1, 64))
+        reg_loss = reg_criterion(z.view(len(target_list), -1, 64)) * float(loss_gain[6])
         reg_losses.append(reg_loss.item())
     else:
         reg_loss = 0
         reg_losses.append(0)
-
     # total loss
     loss = ee_loss + vec_loss + col_loss + lim_loss + ori_loss + fin_loss + reg_loss
     all_losses.append(loss.item())
-
-    return loss
+    return (loss, all_losses, ee_losses, vec_losses, col_losses, lim_losses, ori_losses,
+            fin_losses, reg_losses)
 
 
 def calculate_ee_loss(data_list, target_list, target_pos, ee_criterion):
@@ -111,23 +114,21 @@ def calculate_ee_loss(data_list, target_list, target_pos, ee_criterion):
     return ee_loss
 
 
-"""
-Calculate Vector Loss
-"""
-
-
 def calculate_vec_loss(data_list, target_list, target_pos, vec_criterion):
+    """
+    Calculate Vector Loss
+    """
     # target_sh_mask = torch.cat([data.sh_mask for data in target_list]).to(target_pos.device)
     target_el_mask = torch.cat([data.el_mask for data in target_list]).to(target_pos.device)
     target_ee_mask = torch.cat([data.ee_mask for data in target_list]).to(target_pos.device)
-#     source_sh_mask = torch.cat([data.sh_mask for data in data_list]).to(target_pos.device)
+    #     source_sh_mask = torch.cat([data.sh_mask for data in data_list]).to(target_pos.device)
     source_el_mask = torch.cat([data.el_mask for data in data_list]).to(target_pos.device)
     source_ee_mask = torch.cat([data.ee_mask for data in data_list]).to(target_pos.device)
     # target_sh = torch.masked_select(target_pos, target_sh_mask).view(-1, 3)
     target_el = torch.masked_select(target_pos, target_el_mask).view(-1, 3)
     target_ee = torch.masked_select(target_pos, target_ee_mask).view(-1, 3)
-#     source_sh = torch.masked_select(torch.cat([data.pos for data in data_list]).to(target_pos.device),
-#                                     source_sh_mask).view(-1, 3)
+    #     source_sh = torch.masked_select(torch.cat([data.pos for data in data_list]).to(target_pos.device),
+    #                                     source_sh_mask).view(-1, 3)
     source_el = torch.masked_select(torch.cat([data.pos for data in data_list]).to(target_pos.device),
                                     source_el_mask).view(-1, 3)
     source_ee = torch.masked_select(torch.cat([data.pos for data in data_list]).to(target_pos.device),
@@ -135,7 +136,7 @@ def calculate_vec_loss(data_list, target_list, target_pos, vec_criterion):
     # print(target_sh.shape, target_el.shape, target_ee.shape, source_sh.shape, source_el.shape, source_ee.shape)
     # target_vector1 = target_el - target_sh
     target_vector2 = target_ee - target_el
-#     source_vector1 = source_el - source_sh
+    #     source_vector1 = source_el - source_sh
     source_vector2 = source_ee - source_el
     # print(target_vector1.shape, target_vector2.shape, source_vector1.shape, source_vector2.shape, (target_vector1*source_vector1).sum(-1).shape)
     # normalize
@@ -315,7 +316,6 @@ class CollisionLoss(nn.Module):
             mask = (dist_square < 0.1 ** 2) & (dist_square > 0)
             mask[:, 6, 6] = (dist_square[:, 6, 6] < self.threshold ** 2) & (dist_square[:, 6, 6] > 0)
             loss = torch.sum(torch.exp(-1 * torch.masked_select(dist_square, mask))) / batch_size
-
         return loss
 
     def sphere_capsule_dist_square(self, sphere, capsule_p0, capsule_p1, batch_size,
