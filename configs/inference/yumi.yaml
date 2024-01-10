@@ -22,7 +22,7 @@ LOSS:
 # INFERENCE:
 #   MOTION:
 #     SOURCE: './data/source/sign-all/test/h5/yumi_intro_YuMi.h5'
-#     KEY: '我-wo'
+#     KEY: 'me-wo'
 #   H5:
 #     BOOL: True
 #     PATH: './saved/h5'

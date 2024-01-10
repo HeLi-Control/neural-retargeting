@@ -217,11 +217,13 @@ def hand2graph(urdf_file, cfg):
     joints_index = {name: i for i, name in enumerate(joints_name)}
     edge_index = []
     edge_attr = []
+    print(cfg['edges'])
     for edge in cfg['edges']:
         parent, child = edge
         # add edge index
         edge_index.append(torch.LongTensor([joints_index[parent], joints_index[child]]))
         # add edge attr
+        print(child)
         edge_attr.append(torch.Tensor(joints[child]['origin']))
     edge_index = torch.stack(edge_index, dim=0)
     edge_index = edge_index.permute(1, 0)
