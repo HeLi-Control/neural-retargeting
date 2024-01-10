@@ -8,7 +8,7 @@ MODEL:
   NAME: "YumiNet"
   CHECKPOINT: "./saved/models/yumi/best_model_epoch_0003.pth"
 HYPER:
-  EPOCHS: 200
+  EPOCHS: 1
   BATCH_SIZE: 16
   LEARNING_RATE: 0.00003
 LOSS:

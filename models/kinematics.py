@@ -4,6 +4,8 @@ import torch.nn as nn
 """
 Forward Kinematics for URDF
 """
+
+
 class ForwardKinematicsURDF(nn.Module):
     def __init__(self):
         super(ForwardKinematicsURDF, self).__init__()
@@ -17,32 +19,39 @@ class ForwardKinematicsURDF(nn.Module):
         axis -- rotation axis for rotation x
         order -- rotation order for init rotation
         """
-        x = x.view(num_graphs, -1) # [batch_size, num_nodes]
-        parent = parent.view(num_graphs, -1)[0] # [num_nodes] the same batch, the same topology
-        offset = offset.view(num_graphs, -1, 6) # [batch_size, num_nodes, 6]
-        xyz = offset[:, :, :3] # [batch_size, num_nodes, 3]
-        rpy = offset[:, :, 3:] # [batch_size, num_nodes, 3]
+        x = x.view(num_graphs, -1)  # [batch_size, num_nodes]
+        parent = parent.view(num_graphs, -1)[0]  # [num_nodes] the same batch, the same topology
+        offset = offset.view(num_graphs, -1, 6)  # [batch_size, num_nodes, 6]
+        xyz = offset[:, :, :3]  # [batch_size, num_nodes, 3]
+        rpy = offset[:, :, 3:]  # [batch_size, num_nodes, 3]
 
-        positions = torch.empty(x.shape[0], x.shape[1], 3, device=x.device) # [batch_size, num_nodes, 3]
-        global_positions = torch.empty(x.shape[0], x.shape[1], 3, device=x.device) # [batch_size, num_nodes, 3]
-        rot_matrices = torch.empty(x.shape[0], x.shape[1], 3, 3, device=x.device) # [batch_size, num_nodes, 3, 3]
-        transform = self.transform_from_axis(x, axis) # [batch_size, num_nodes, 3, 3]
-        rpy_transform = self.transform_from_euler(rpy, order) # [batch_size, num_nodes, 3, 3]
+        positions = torch.empty(x.shape[0], x.shape[1], 3, device=x.device)  # [batch_size, num_nodes, 3]
+        global_positions = torch.empty(x.shape[0], x.shape[1], 3, device=x.device)  # [batch_size, num_nodes, 3]
+        rot_matrices = torch.empty(x.shape[0], x.shape[1], 3, 3, device=x.device)  # [batch_size, num_nodes, 3, 3]
+        transform = self.transform_from_axis(x, axis)  # [batch_size, num_nodes, 3, 3]
+        rpy_transform = self.transform_from_euler(rpy, order)  # [batch_size, num_nodes, 3, 3]
 
         # iterate all nodes
         for node_idx in range(x.shape[1]):
-            # serach parent
+            # search parent
             parent_idx = parent[node_idx]
 
             # position
             if parent_idx != -1:
-                positions[:, node_idx, :] = torch.bmm(rot_matrices[:, parent_idx, :, :], xyz[:, node_idx, :].unsqueeze(2)).squeeze() + positions[:, parent_idx, :]
-                global_positions[:, node_idx, :] = torch.bmm(rot_matrices[:, parent_idx, :, :], xyz[:, node_idx, :].unsqueeze(2)).squeeze() + global_positions[:, parent_idx, :]
-                rot_matrices[:, node_idx, :, :] = torch.bmm(rot_matrices[:, parent_idx, :, :].clone(), torch.bmm(rpy_transform[:, node_idx, :, :], transform[:, node_idx, :, :]))
+                positions[:, node_idx, :] = torch.bmm(rot_matrices[:, parent_idx, :, :],
+                                                      xyz[:, node_idx, :].unsqueeze(2)).squeeze() + positions[:,
+                                                                                                    parent_idx, :]
+                global_positions[:, node_idx, :] = torch.bmm(rot_matrices[:, parent_idx, :, :],
+                                                             xyz[:, node_idx, :].unsqueeze(
+                                                                 2)).squeeze() + global_positions[:, parent_idx, :]
+                rot_matrices[:, node_idx, :, :] = torch.bmm(rot_matrices[:, parent_idx, :, :].clone(),
+                                                            torch.bmm(rpy_transform[:, node_idx, :, :],
+                                                                      transform[:, node_idx, :, :]))
             else:
-                positions[:, node_idx, :] = torch.zeros(3) # xyz[:, node_idx, :]
+                positions[:, node_idx, :] = torch.zeros(3)  # xyz[:, node_idx, :]
                 global_positions[:, node_idx, :] = xyz[:, node_idx, :]
-                rot_matrices[:, node_idx, :, :] = torch.bmm(rpy_transform[:, node_idx, :, :], transform[:, node_idx, :, :])
+                rot_matrices[:, node_idx, :, :] = torch.bmm(rpy_transform[:, node_idx, :, :],
+                                                            transform[:, node_idx, :, :])
 
         return positions.view(-1, 3), rot_matrices.view(-1, 3, 3), global_positions.view(-1, 3)
 
@@ -56,7 +65,7 @@ class ForwardKinematicsURDF(nn.Module):
 
     @staticmethod
     def transform_from_axis(euler, axis):
-        transform = torch.empty(euler.shape[0:2] + (3, 3), device=euler.device) # [batch_size, num_nodes, 3, 3]
+        transform = torch.empty(euler.shape[0:2] + (3, 3), device=euler.device)  # [batch_size, num_nodes, 3, 3]
         cos = torch.cos(euler)
         sin = torch.sin(euler)
         cord = ord(axis) - ord('x')
@@ -83,6 +92,8 @@ class ForwardKinematicsURDF(nn.Module):
 """
 Forward Kinematics with Different Axes
 """
+
+
 class ForwardKinematicsAxis(nn.Module):
     def __init__(self):
         super(ForwardKinematicsAxis, self).__init__()
@@ -96,36 +107,43 @@ class ForwardKinematicsAxis(nn.Module):
         axis -- rotation axis for rotation x
         order -- rotation order for init rotation
         """
-        x = x.view(num_graphs, -1) # [batch_size, num_nodes]
-        parent = parent.view(num_graphs, -1)[0] # [num_nodes] the same batch, the same topology
-        axis = axis.view(num_graphs, -1, 3)[0] # [num_nodes, 3] the same batch, the same topology
+        x = x.view(num_graphs, -1)  # [batch_size, num_nodes]
+        parent = parent.view(num_graphs, -1)[0]  # [num_nodes] the same batch, the same topology
+        axis = axis.view(num_graphs, -1, 3)[0]  # [num_nodes, 3] the same batch, the same topology
         axis_norm = torch.norm(axis, dim=-1)
         # print(x.shape, axis.shape)
-        x = x * axis_norm # filter no rotation node
-        offset = offset.view(num_graphs, -1, 6) # [batch_size, num_nodes, 6]
-        xyz = offset[:, :, :3] # [batch_size, num_nodes, 3]
-        rpy = offset[:, :, 3:] # [batch_size, num_nodes, 3]
+        x = x * axis_norm  # filter no rotation node
+        offset = offset.view(num_graphs, -1, 6)  # [batch_size, num_nodes, 6]
+        xyz = offset[:, :, :3]  # [batch_size, num_nodes, 3]
+        rpy = offset[:, :, 3:]  # [batch_size, num_nodes, 3]
 
-        positions = torch.empty(x.shape[0], x.shape[1], 3, device=x.device) # [batch_size, num_nodes, 3]
-        global_positions = torch.empty(x.shape[0], x.shape[1], 3, device=x.device) # [batch_size, num_nodes, 3]
-        rot_matrices = torch.empty(x.shape[0], x.shape[1], 3, 3, device=x.device) # [batch_size, num_nodes, 3, 3]
-        transform = self.transform_from_multiple_axis(x, axis) # [batch_size, num_nodes, 3, 3]
-        rpy_transform = self.transform_from_euler(rpy, order) # [batch_size, num_nodes, 3, 3]
+        positions = torch.empty(x.shape[0], x.shape[1], 3, device=x.device)  # [batch_size, num_nodes, 3]
+        global_positions = torch.empty(x.shape[0], x.shape[1], 3, device=x.device)  # [batch_size, num_nodes, 3]
+        rot_matrices = torch.empty(x.shape[0], x.shape[1], 3, 3, device=x.device)  # [batch_size, num_nodes, 3, 3]
+        transform = self.transform_from_multiple_axis(x, axis)  # [batch_size, num_nodes, 3, 3]
+        rpy_transform = self.transform_from_euler(rpy, order)  # [batch_size, num_nodes, 3, 3]
 
         # iterate all nodes
         for node_idx in range(x.shape[1]):
-            # serach parent
+            # search parent
             parent_idx = parent[node_idx]
 
             # position
             if parent_idx != -1:
-                positions[:, node_idx, :] = torch.bmm(rot_matrices[:, parent_idx, :, :], xyz[:, node_idx, :].unsqueeze(2)).squeeze() + positions[:, parent_idx, :]
-                global_positions[:, node_idx, :] = torch.bmm(rot_matrices[:, parent_idx, :, :], xyz[:, node_idx, :].unsqueeze(2)).squeeze() + global_positions[:, parent_idx, :]
-                rot_matrices[:, node_idx, :, :] = torch.bmm(rot_matrices[:, parent_idx, :, :].clone(), torch.bmm(rpy_transform[:, node_idx, :, :], transform[:, node_idx, :, :]))
+                positions[:, node_idx, :] = torch.bmm(rot_matrices[:, parent_idx, :, :],
+                                                      xyz[:, node_idx, :].unsqueeze(2)).squeeze() + positions[:,
+                                                                                                    parent_idx, :]
+                global_positions[:, node_idx, :] = torch.bmm(rot_matrices[:, parent_idx, :, :],
+                                                             xyz[:, node_idx, :].unsqueeze(
+                                                                 2)).squeeze() + global_positions[:, parent_idx, :]
+                rot_matrices[:, node_idx, :, :] = torch.bmm(rot_matrices[:, parent_idx, :, :].clone(),
+                                                            torch.bmm(rpy_transform[:, node_idx, :, :],
+                                                                      transform[:, node_idx, :, :]))
             else:
-                positions[:, node_idx, :] = torch.zeros(3) # xyz[:, node_idx, :]
+                positions[:, node_idx, :] = torch.zeros(3)  # xyz[:, node_idx, :]
                 global_positions[:, node_idx, :] = xyz[:, node_idx, :]
-                rot_matrices[:, node_idx, :, :] = torch.bmm(rpy_transform[:, node_idx, :, :], transform[:, node_idx, :, :])
+                rot_matrices[:, node_idx, :, :] = torch.bmm(rpy_transform[:, node_idx, :, :],
+                                                            transform[:, node_idx, :, :])
 
         return positions.view(-1, 3), rot_matrices.view(-1, 3, 3), global_positions.view(-1, 3)
 
@@ -139,7 +157,7 @@ class ForwardKinematicsAxis(nn.Module):
 
     @staticmethod
     def transform_from_single_axis(euler, axis):
-        transform = torch.empty(euler.shape[0:2] + (3, 3), device=euler.device) # [batch_size, num_nodes, 3, 3]
+        transform = torch.empty(euler.shape[0:2] + (3, 3), device=euler.device)  # [batch_size, num_nodes, 3, 3]
         cos = torch.cos(euler)
         sin = torch.sin(euler)
         cord = ord(axis) - ord('x')
@@ -164,7 +182,7 @@ class ForwardKinematicsAxis(nn.Module):
 
     @staticmethod
     def transform_from_multiple_axis(euler, axis):
-        transform = torch.empty(euler.shape[0:2] + (3, 3), device=euler.device) # [batch_size, num_nodes, 3, 3]
+        transform = torch.empty(euler.shape[0:2] + (3, 3), device=euler.device)  # [batch_size, num_nodes, 3, 3]
         cos = torch.cos(euler)
         sin = torch.sin(euler)
         n1 = axis[..., 0]

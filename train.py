@@ -3,19 +3,17 @@ from torch_geometric.data import Batch
 from models.loss import calculate_all_loss
 import time
 
-def train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion, ori_criterion, fin_criterion, reg_criterion, optimizer, dataloader, target_skeleton, epoch, logger, log_interval, writer, device, z_all=None, ang_all=None):
+
+def train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion,
+                ori_criterion, fin_criterion, reg_criterion, optimizer, dataloader,
+                target_skeleton, epoch, logger, log_interval, writer, device,
+                z_all=None):
     logger.info("Training Epoch {}".format(epoch+1).center(60, '-'))
     start_time = time.time()
 
     model.train()
-    all_losses = []
-    ee_losses = []
-    vec_losses = []
-    col_losses = []
-    lim_losses = []
-    ori_losses = []
-    fin_losses = []
-    reg_losses = []
+    all_losses = ee_losses = vec_losses = col_losses = lim_losses = []
+    ori_losses = fin_losses = reg_losses = []
 
     for batch_idx, data_list in enumerate(dataloader):
         for target_idx, target in enumerate(target_skeleton):
@@ -47,7 +45,10 @@ def train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion
 
         # log
         if (batch_idx + 1) % log_interval == 0:
-            logger.info("epoch {:04d} | iteration {:05d} | EE {:.6f} | Vec {:.6f} | Col {:.6f} | Lim {:.6f} | Ori {:.6f} | Fin {:.6f} | Reg {:.6f}".format(epoch+1, batch_idx+1, ee_losses[-1], vec_losses[-1], col_losses[-1], lim_losses[-1], ori_losses[-1], fin_losses[-1], reg_losses[-1]))
+            logger.info("epoch {:04d} | iteration {:05d} | EE {:.6f} | Vec {:.6f} | \
+            Col {:.6f} | Lim {:.6f} | Ori {:.6f} | Fin {:.6f} | Reg {:.6f}".format(
+                epoch + 1, batch_idx + 1, ee_losses[-1], vec_losses[-1], col_losses[-1],
+                lim_losses[-1], ori_losses[-1], fin_losses[-1], reg_losses[-1]))
 
     # Compute average loss
     train_loss = sum(all_losses)/len(all_losses)
@@ -68,6 +69,10 @@ def train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion
     writer.add_scalars('finger_loss', {'train': fin_loss}, epoch+1)
     writer.add_scalars('regularization_loss', {'train': reg_loss}, epoch+1)
     end_time = time.time()
-    logger.info("Epoch {:04d} | Training Time {:.2f} s | Avg Training Loss {:.6f} | Avg EE Loss {:.6f} | Avg Vec Loss {:.6f} | Avg Col Loss {:.6f} | Avg Lim Loss {:.6f} | Avg Ori Loss {:.6f} | Avg Fin Loss {:.6f} | Avg Reg Loss {:.6f}".format(epoch+1, end_time-start_time, train_loss, ee_loss, vec_loss, col_loss, lim_loss, ori_loss, fin_loss, reg_loss))
+    logger.info("Epoch {:04d} | Training Time {:.2f} s | Avg Training Loss {:.6f} | \
+    Avg EE Loss {:.6f} | Avg Vec Loss {:.6f} | Avg Col Loss {:.6f} | Avg Lim Loss {:.6f} | \
+    Avg Ori Loss {:.6f} | Avg Fin Loss {:.6f} | Avg Reg Loss {:.6f}"\
+                .format(epoch+1, end_time-start_time, train_loss, ee_loss,
+                        vec_loss, col_loss, lim_loss, ori_loss, fin_loss, reg_loss))
 
     return train_loss

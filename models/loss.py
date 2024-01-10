@@ -71,10 +71,11 @@ def calculate_all_loss(data_list, target_list, ee_criterion, vec_criterion, col_
 
     return loss
 
-"""
-Calculate End Effector Loss
-"""
+
 def calculate_ee_loss(data_list, target_list, target_pos, ee_criterion):
+    """
+    Calculate End Effector Loss
+    """
     target_mask = torch.cat([data.ee_mask for data in target_list]).to(target_pos.device)
     source_mask = torch.cat([data.ee_mask for data in data_list]).to(target_pos.device)
     target_ee = torch.masked_select(target_pos, target_mask).view(-1, 3)

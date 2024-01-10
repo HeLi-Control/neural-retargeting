@@ -4,9 +4,6 @@ import torch.optim as optim
 import torch_geometric.transforms as transforms
 from torch_geometric.data import Batch, DataListLoader
 from tensorboardX import SummaryWriter
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import mpl_toolkits.mplot3d.axes3d as p3
 import numpy as np
 import h5py
 import argparse
@@ -17,7 +14,7 @@ import copy
 from datetime import datetime
 
 import dataset
-from dataset import Normalize, parse_h5, parse_h5_hand, parse_all
+from dataset import Normalize, parse_all
 from models import model
 from models.loss import CollisionLoss, JointLimitLoss, RegLoss
 from train import train_epoch
@@ -39,7 +36,9 @@ create_folder(cfg.OTHERS.LOG)
 create_folder(cfg.OTHERS.SUMMARY)
 
 # Create logger & tensorboard writer
-logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[logging.FileHandler(os.path.join(cfg.OTHERS.LOG, "{:%Y-%m-%d_%H-%M-%S}.log".format(datetime.now()))), logging.StreamHandler()])
+logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[
+    logging.FileHandler(os.path.join(cfg.OTHERS.LOG, "{:%Y-%m-%d_%H-%M-%S}.log".format(datetime.now()))),
+    logging.StreamHandler()])
 logger = logging.getLogger()
 writer = SummaryWriter(os.path.join(cfg.OTHERS.SUMMARY, "{:%Y-%m-%d_%H-%M-%S}".format(datetime.now())))
 
@@ -54,10 +53,11 @@ if __name__ == '__main__':
         print('Inference single key {}'.format(cfg.INFERENCE.MOTION.KEY))
         # test_data, l_hand_angle, r_hand_angle = parse_h5(filename=cfg.INFERENCE.MOTION.SOURCE, selected_key=cfg.INFERENCE.MOTION.KEY)
         # test_data = parse_h5_hand(filename=cfg.INFERENCE.MOTION.SOURCE, selected_key=cfg.INFERENCE.MOTION.KEY)
-        test_data = parse_all(filename=cfg.INFERENCE.MOTION.SOURCE, selected_key=cfg.INFERENCE.MOTION.KEY)
+        test_data = parse_all(filename=cfg.INFERENCE.MOTION.SOURCE,
+                              selected_key=cfg.INFERENCE.MOTION.KEY)
         test_data = [pre_transform(data) for data in test_data]
         indices = [idx for idx in range(0, len(test_data), cfg.HYPER.BATCH_SIZE)]
-        test_loader = [test_data]#[test_data[idx: idx+cfg.HYPER.BATCH_SIZE] for idx in indices]
+        test_loader = [test_data]  # [test_data[idx: idx+cfg.HYPER.BATCH_SIZE] for idx in indices]
         hf = h5py.File(os.path.join(cfg.INFERENCE.H5.PATH, 'source.h5'), 'w')
         g1 = hf.create_group('group1')
         source_pos = torch.stack([data.pos for data in test_data], dim=0)
@@ -68,9 +68,13 @@ if __name__ == '__main__':
     else:
         # inference all
         print('Inference all')
-        test_set = getattr(dataset, cfg.DATASET.TEST.SOURCE_NAME)(root=cfg.DATASET.TEST.SOURCE_PATH, pre_transform=pre_transform)
-        test_loader = DataListLoader(test_set, batch_size=cfg.HYPER.BATCH_SIZE, shuffle=False, num_workers=16, pin_memory=True)
-    test_target = sorted([target for target in getattr(dataset, cfg.DATASET.TEST.TARGET_NAME)(root=cfg.DATASET.TEST.TARGET_PATH)], key=lambda target : target.skeleton_type)
+        test_set = getattr(dataset, cfg.DATASET.TEST.SOURCE_NAME)(root=cfg.DATASET.TEST.SOURCE_PATH,
+                                                                  pre_transform=pre_transform)
+        test_loader = DataListLoader(test_set, batch_size=cfg.HYPER.BATCH_SIZE, shuffle=False, num_workers=16,
+                                     pin_memory=True)
+    test_target = sorted(
+        [target for target in getattr(dataset, cfg.DATASET.TEST.TARGET_NAME)(root=cfg.DATASET.TEST.TARGET_PATH)],
+        key=lambda target: target.skeleton_type)
 
     # Create model
     model = getattr(model, cfg.MODEL.NAME)().to(device)
@@ -114,7 +118,7 @@ if __name__ == '__main__':
             z.requires_grad = True
             z_all.append(z)
     encode_end_time = time.time()
-    print('encode time {} ms'.format((encode_end_time - encode_start_time)*1000))
+    print('encode time {} ms'.format((encode_end_time - encode_start_time) * 1000))
     # Create loss criterion
     # end effector loss
     ee_criterion = nn.MSELoss() if cfg.LOSS.EE else None
@@ -142,7 +146,9 @@ if __name__ == '__main__':
     # latent optimization
     decode_start_time = time.time()
     for epoch in range(cfg.HYPER.EPOCHS):
-        train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion, ori_criterion, fin_criterion, reg_criterion, optimizer, test_loader, test_target, epoch, logger, cfg.OTHERS.LOG_INTERVAL, writer, device, z_all)
+        train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion, ori_criterion,
+                                 fin_criterion, reg_criterion, optimizer, test_loader, test_target, epoch, logger,
+                                 cfg.OTHERS.LOG_INTERVAL, writer, device, z_all)
         if cfg.INFERENCE.MOTION.KEY:
             # Save model
             if train_loss > best_loss:
@@ -156,7 +162,7 @@ if __name__ == '__main__':
                 break
             print(best_cnt)
     decode_end_time = time.time()
-    print('decode time {} ms'.format((decode_end_time - decode_start_time)*1000))
+    print('decode time {} ms'.format((decode_end_time - decode_start_time) * 1000))
     if cfg.INFERENCE.MOTION.KEY:
         # store final results
         model.eval()
@@ -171,20 +177,21 @@ if __name__ == '__main__':
                 # fetch z
                 z = best_z_all[batch_idx]
                 # forward
-                _, target_ang, _, _, target_global_pos, l_hand_ang, _, r_hand_ang, _ = model.decode(z, Batch.from_data_list(target_list).to(z.device))
-
+                _, target_ang, _, _, target_global_pos, l_hand_ang, _, r_hand_ang, _ = (
+                    model.decode(z, Batch.from_data_list(target_list).to(z.device)))
                 if target_global_pos is not None and target_ang is not None:
                     pos_all.append(target_global_pos)
                     ang_all.append(target_ang)
                 if l_hand_ang is not None and r_hand_ang is not None:
                     l_hand_ang_all.append(l_hand_ang)
                     r_hand_ang_all.append(r_hand_ang)
-        
+
         if cfg.INFERENCE.H5.BOOL:
             hf = h5py.File(os.path.join(cfg.INFERENCE.H5.PATH, 'inference.h5'), 'w')
             g1 = hf.create_group('group1')
             if pos_all and ang_all:
-                pos = torch.cat(pos_all, dim=0).view(len(test_data), -1, 3).detach().cpu().numpy() # [T, joint_num, xyz]
+                pos = torch.cat(pos_all, dim=0).view(len(test_data), -1, 3)\
+                    .detach().cpu().numpy()  # [T, joint_num, xyz]
                 ang = torch.cat(ang_all, dim=0).view(len(test_data), -1).detach().cpu().numpy()
                 g1.create_dataset('l_joint_pos', data=pos[:, :7])
                 g1.create_dataset('r_joint_pos', data=pos[:, 7:])
@@ -196,8 +203,12 @@ if __name__ == '__main__':
                 l_hand_angle = torch.cat(l_hand_ang_all, dim=0).view(len(test_data), -1).detach().cpu().numpy()
                 r_hand_angle = torch.cat(r_hand_ang_all, dim=0).view(len(test_data), -1).detach().cpu().numpy()
                 # remove zeros
-                l_hand_angle = np.concatenate([l_hand_angle[:,1:3],l_hand_angle[:,4:6],l_hand_angle[:,7:9],l_hand_angle[:,10:12],l_hand_angle[:,13:17]], axis=1)
-                r_hand_angle = np.concatenate([r_hand_angle[:,1:3],r_hand_angle[:,4:6],r_hand_angle[:,7:9],r_hand_angle[:,10:12],r_hand_angle[:,13:17]], axis=1)
+                l_hand_angle = np.concatenate(
+                    [l_hand_angle[:, 1:3], l_hand_angle[:, 4:6], l_hand_angle[:, 7:9], l_hand_angle[:, 10:12],
+                     l_hand_angle[:, 13:17]], axis=1)
+                r_hand_angle = np.concatenate(
+                    [r_hand_angle[:, 1:3], r_hand_angle[:, 4:6], r_hand_angle[:, 7:9], r_hand_angle[:, 10:12],
+                     r_hand_angle[:, 13:17]], axis=1)
                 g1.create_dataset('l_glove_angle', data=l_hand_angle)
                 g1.create_dataset('r_glove_angle', data=r_hand_angle)
             hf.close()

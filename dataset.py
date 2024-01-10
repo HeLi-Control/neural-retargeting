@@ -6,14 +6,13 @@ from torch_geometric.data import InMemoryDataset
 import os
 import math
 import numpy as np
-from numpy.linalg import inv
 from scipy.spatial.transform import Rotation as R
 from utils.urdf2graph import yumi2graph, hand2graph
 import h5py
 
 
 class Data(OldData):
-    def __inc__(self, key, value):
+    def __inc__(self, key, value, *args, **kwargs):
         if key == 'edge_index':
             return self.num_nodes
         elif key == 'l_hand_edge_index':
@@ -23,26 +22,29 @@ class Data(OldData):
         else:
             return 0
 
-"""
-Normalize by a constant coefficient
-"""
+
 class Normalize(object):
-    def __call__(self, data, coeff=100.0):
+    """
+    Normalize by a constant coefficient
+    """
+
+    def __call__(self, data, coefficient=100.0):
         if hasattr(data, 'x'):
-            data.x = data.x/coeff
+            data.x = data.x / coefficient
         if hasattr(data, 'l_hand_x'):
-            data.l_hand_x = data.l_hand_x/coeff
+            data.l_hand_x = data.l_hand_x / coefficient
         if hasattr(data, 'r_hand_x'):
-            data.r_hand_x = data.r_hand_x/coeff
+            data.r_hand_x = data.r_hand_x / coefficient
         return data
 
     def __repr__(self):
         return '{}()'.format(self.__class__.__name__)
 
-"""
-Target Dataset for Yumi Manipulator
-"""
+
 class YumiDataset(InMemoryDataset):
+    """
+    Target Dataset for Yumi Manipulator
+    """
     yumi_cfg = {
         'joints_name': [
             'yumi_joint_1_l',
@@ -91,13 +93,16 @@ class YumiDataset(InMemoryDataset):
             'yumi_joint_3_r',
         ],
     }
+
     def __init__(self, root, transform=None, pre_transform=None):
         super(YumiDataset, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
+        self._raw_file_names = []
 
     @property
     def raw_file_names(self):
-        self._raw_file_names = [os.path.join(self.root, file) for file in os.listdir(self.root) if file.endswith('.urdf')]
+        self._raw_file_names = [os.path.join(self.root, file) for file in os.listdir(self.root) if
+                                file.endswith('.urdf')]
         return self._raw_file_names
 
     @property
@@ -119,48 +124,62 @@ class YumiDataset(InMemoryDataset):
         torch.save((data, slices), self.processed_paths[0])
 
 
-"""
-Map glove data to inspire hand data
-"""
 def linear_map(x_, min_, max_, min_hat, max_hat):
+    """
+    Map glove data to inspire hand data
+    """
     x_hat = 1.0 * (x_ - min_) / (max_ - min_) * (max_hat - min_hat) + min_hat
     return x_hat
 
+
 def map_glove_to_inspire_hand(glove_angles):
+    # This function linearly maps the Wiseglove angle measurement to Inspire hand's joint angles.
 
-    ### This function linearly maps the Wiseglove angle measurement to Inspire hand's joint angles.
-
-    ## preparation, specify the range for linear scaling
-    hand_start = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.1, 0.0, 0.0]) # radius already
+    # preparation, specify the range for linear scaling
+    hand_start = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.1, 0.0, 0.0])  # radius already
     hand_final = np.array([-1.6, -1.6, -1.6, -1.6, -1.6, -1.6, -1.6, -1.6, -0.75, 0.0, -0.2, -0.15])
-    glove_start = np.array([0, 0, 53, 0, 0, 22, 0, 0, 22, 0, 0, 35, 0, 0])# * pi / 180.0 # degree to radius
-    glove_final = np.array([45, 100, 0, 90, 120, 0, 90, 120, 0, 90, 120, 0, 90, 120])# * pi / 180.0
+    glove_start = np.array([0, 0, 53, 0, 0, 22, 0, 0, 22, 0, 0, 35, 0, 0])  # * pi / 180.0 # degree to radius
+    glove_final = np.array([45, 100, 0, 90, 120, 0, 90, 120, 0, 90, 120, 0, 90, 120])  # * pi / 180.0
     length = glove_angles.shape[0]
-    hand_angles = np.zeros((length, 12)) # 12 joints
+    hand_angles = np.zeros((length, 12))  # 12 joints
 
-    ## Iterate to map angles
+    # Iterate to map angles
     for i in range(length):
         # four fingers' extension/flexion (abduction/adduction are dumped)
-        hand_angles[i, 0] = linear_map(glove_angles[i, 3], glove_start[3], glove_final[3], hand_start[0], hand_final[0]) # Link1 (joint name)
-        hand_angles[i, 1] = linear_map(glove_angles[i, 4], glove_start[4], glove_final[4], hand_start[1], hand_final[1]) # Link11
-        hand_angles[i, 2] = linear_map(glove_angles[i, 6], glove_start[6], glove_final[6], hand_start[2], hand_final[2]) # Link2
-        hand_angles[i, 3] = linear_map(glove_angles[i, 7], glove_start[7], glove_final[7], hand_start[3], hand_final[3]) # Link22
-        hand_angles[i, 4] = linear_map(glove_angles[i, 9], glove_start[9], glove_final[9], hand_start[4], hand_final[4]) # Link3
-        hand_angles[i, 5] = linear_map(glove_angles[i, 10], glove_start[10], glove_final[10], hand_start[5], hand_final[5]) # Link33
-        hand_angles[i, 6] = linear_map(glove_angles[i, 12], glove_start[12], glove_final[12], hand_start[6], hand_final[6]) # Link4
-        hand_angles[i, 7] = linear_map(glove_angles[i, 13], glove_start[13], glove_final[13], hand_start[7], hand_final[7]) # Link44
+        hand_angles[i, 0] = linear_map(glove_angles[i, 3], glove_start[3], glove_final[3], hand_start[0],
+                                       hand_final[0])  # Link1 (joint name)
+        hand_angles[i, 1] = linear_map(glove_angles[i, 4], glove_start[4], glove_final[4], hand_start[1],
+                                       hand_final[1])  # Link11
+        hand_angles[i, 2] = linear_map(glove_angles[i, 6], glove_start[6], glove_final[6], hand_start[2],
+                                       hand_final[2])  # Link2
+        hand_angles[i, 3] = linear_map(glove_angles[i, 7], glove_start[7], glove_final[7], hand_start[3],
+                                       hand_final[3])  # Link22
+        hand_angles[i, 4] = linear_map(glove_angles[i, 9], glove_start[9], glove_final[9], hand_start[4],
+                                       hand_final[4])  # Link3
+        hand_angles[i, 5] = linear_map(glove_angles[i, 10], glove_start[10], glove_final[10], hand_start[5],
+                                       hand_final[5])  # Link33
+        hand_angles[i, 6] = linear_map(glove_angles[i, 12], glove_start[12], glove_final[12], hand_start[6],
+                                       hand_final[6])  # Link4
+        hand_angles[i, 7] = linear_map(glove_angles[i, 13], glove_start[13], glove_final[13], hand_start[7],
+                                       hand_final[7])  # Link44
 
         # thumb
-        hand_angles[i, 8] = (hand_start[8] + hand_final[8]) / 2.0 # Link5 (rotation about z axis), fixed!
-        hand_angles[i, 9] = linear_map(glove_angles[i, 2], glove_start[2], glove_final[2], hand_start[9], hand_final[9]) # Link 51
-        hand_angles[i, 10] = linear_map(glove_angles[i, 0], glove_start[0], glove_final[0], hand_start[10], hand_final[10]) # Link 52
-        hand_angles[i, 11] = linear_map(glove_angles[i, 1], glove_start[1], glove_final[1], hand_start[11], hand_final[11]) # Link 53
+        hand_angles[i, 8] = (hand_start[8] + hand_final[8]) / 2.0  # Link5 (rotation about z axis), fixed!
+        hand_angles[i, 9] = linear_map(glove_angles[i, 2], glove_start[2], glove_final[2], hand_start[9],
+                                       hand_final[9])  # Link 51
+        hand_angles[i, 10] = linear_map(glove_angles[i, 0], glove_start[0], glove_final[0], hand_start[10],
+                                        hand_final[10])  # Link 52
+        hand_angles[i, 11] = linear_map(glove_angles[i, 1], glove_start[1], glove_final[1], hand_start[11],
+                                        hand_final[11])  # Link 53
 
     return hand_angles
+
 
 """
 Parse H5 File
 """
+
+
 def parse_h5(filename, selected_key=None):
     data_list = []
     h5_file = h5py.File(filename, 'r')
@@ -171,7 +190,7 @@ def parse_h5(filename, selected_key=None):
         keys = [selected_key]
     for key in keys:
         if '语句' in key and selected_key is None:
-            print('Skipping'+key)
+            print('Skipping' + key)
             continue
         # glove data
         l_glove_angle = h5_file[key + '/l_glove_angle'][:]
@@ -207,8 +226,10 @@ def parse_h5(filename, selected_key=None):
         # l_shoulder_matrix = l_shoulder_matrix * inv(l_shoulder_matrix)
         # r_shoulder_matrix = r_shoulder_matrix * inv(r_shoulder_matrix)
         # euler data
-        l_shoulder_euler = R.from_matrix(l_shoulder_matrix).as_euler('zyx', degrees=True)
-        r_shoulder_euler = R.from_matrix(r_shoulder_matrix).as_euler('zyx', degrees=True)
+        l_shoulder_euler = R.from_matrix(l_shoulder_matrix).as_euler(
+            'zyx', degrees=True)
+        r_shoulder_euler = R.from_matrix(r_shoulder_matrix).as_euler(
+            'zyx', degrees=True)
         l_elbow_euler = R.from_matrix(l_elbow_matrix).as_euler('zyx', degrees=True)
         r_elbow_euler = R.from_matrix(r_elbow_matrix).as_euler('zyx', degrees=True)
         l_wrist_euler = R.from_matrix(l_wrist_matrix).as_euler('zyx', degrees=True)
@@ -216,34 +237,39 @@ def parse_h5(filename, selected_key=None):
 
         total_frames = l_shoulder_pos.shape[0]
         for t in range(total_frames):
-            data = parse_arm(l_shoulder_euler[t], l_elbow_euler[t], l_wrist_euler[t], r_shoulder_euler[t], r_elbow_euler[t], r_wrist_euler[t],
-                            l_shoulder_pos[t], l_elbow_pos[t], l_wrist_pos[t], r_shoulder_pos[t], r_elbow_pos[t], r_wrist_pos[t],
-                            l_shoulder_quat[t], l_elbow_quat[t], l_wrist_quat[t], r_shoulder_quat[t], r_elbow_quat[t], r_wrist_quat[t])
+            data = parse_arm(l_shoulder_euler[t], l_elbow_euler[t], l_wrist_euler[t],
+                             r_shoulder_euler[t],
+                             r_elbow_euler[t], r_wrist_euler[t],
+                             l_shoulder_pos[t], l_elbow_pos[t], l_wrist_pos[t],
+                             r_shoulder_pos[t], r_elbow_pos[t], r_wrist_pos[t],
+                             l_shoulder_quat[t], l_elbow_quat[t], l_wrist_quat[t],
+                             r_shoulder_quat[t], r_elbow_quat[t], r_wrist_quat[t])
             data_list.append(data)
     return data_list, l_hand_angle, r_hand_angle
 
+
 def parse_arm(l_shoulder_euler, l_elbow_euler, l_wrist_euler, r_shoulder_euler, r_elbow_euler, r_wrist_euler,
-            l_shoulder_pos, l_elbow_pos, l_wrist_pos, r_shoulder_pos, r_elbow_pos, r_wrist_pos,
-            l_shoulder_quat, l_elbow_quat, l_wrist_quat, r_shoulder_quat, r_elbow_quat, r_wrist_quat):
+              l_shoulder_pos, l_elbow_pos, l_wrist_pos, r_shoulder_pos, r_elbow_pos, r_wrist_pos,
+              l_shoulder_quat, l_elbow_quat, l_wrist_quat, r_shoulder_quat, r_elbow_quat, r_wrist_quat):
     # x
     x = torch.stack([torch.from_numpy(l_shoulder_euler),
-                        torch.from_numpy(l_elbow_euler),
-                        torch.from_numpy(l_wrist_euler),
-                        torch.from_numpy(r_shoulder_euler),
-                        torch.from_numpy(r_elbow_euler),
-                        torch.from_numpy(r_wrist_euler)], dim=0).float()
+                     torch.from_numpy(l_elbow_euler),
+                     torch.from_numpy(l_wrist_euler),
+                     torch.from_numpy(r_shoulder_euler),
+                     torch.from_numpy(r_elbow_euler),
+                     torch.from_numpy(r_wrist_euler)], dim=0).float()
     # number of nodes
     num_nodes = 6
     # edge index
     edge_index = torch.LongTensor([[0, 1, 3, 4],
-                                    [1, 2, 4, 5]])
+                                   [1, 2, 4, 5]])
     # position
     pos = torch.stack([torch.from_numpy(l_shoulder_pos),
-                        torch.from_numpy(l_elbow_pos),
-                        torch.from_numpy(l_wrist_pos),
-                        torch.from_numpy(r_shoulder_pos),
-                        torch.from_numpy(r_elbow_pos),
-                        torch.from_numpy(r_wrist_pos)], dim=0).float()
+                       torch.from_numpy(l_elbow_pos),
+                       torch.from_numpy(l_wrist_pos),
+                       torch.from_numpy(r_shoulder_pos),
+                       torch.from_numpy(r_elbow_pos),
+                       torch.from_numpy(r_wrist_pos)], dim=0).float()
     # edge attributes
     edge_attr = []
     for edge in edge_index.permute(1, 0):
@@ -279,7 +305,7 @@ def parse_arm(l_shoulder_euler, l_elbow_euler, l_wrist_euler, r_shoulder_euler, 
         current_idx = node_idx
         while current_idx != -1:
             origin = offset[current_idx]
-            offsets_mod = math.sqrt(origin[0]**2+origin[1]**2+origin[2]**2)
+            offsets_mod = math.sqrt(origin[0] ** 2 + origin[1] ** 2 + origin[2] ** 2)
             dist += offsets_mod
             current_idx = parent[current_idx]
         root_dist[node_idx] = dist
@@ -290,7 +316,7 @@ def parse_arm(l_shoulder_euler, l_elbow_euler, l_wrist_euler, r_shoulder_euler, 
         current_idx = node_idx
         while current_idx != -1 and current_idx != 0 and current_idx != 3:
             origin = offset[current_idx]
-            offsets_mod = math.sqrt(origin[0]**2+origin[1]**2+origin[2]**2)
+            offsets_mod = math.sqrt(origin[0] ** 2 + origin[1] ** 2 + origin[2] ** 2)
             dist += offsets_mod
             current_idx = parent[current_idx]
         shoulder_dist[node_idx] = dist
@@ -301,43 +327,36 @@ def parse_arm(l_shoulder_euler, l_elbow_euler, l_wrist_euler, r_shoulder_euler, 
         current_idx = node_idx
         while current_idx != -1 and current_idx != 1 and current_idx != 4:
             origin = offset[current_idx]
-            offsets_mod = math.sqrt(origin[0]**2+origin[1]**2+origin[2]**2)
+            offsets_mod = math.sqrt(origin[0] ** 2 + origin[1] ** 2 + origin[2] ** 2)
             dist += offsets_mod
             current_idx = parent[current_idx]
         elbow_dist[node_idx] = dist
     # quaternion
     q = torch.stack([torch.from_numpy(l_shoulder_quat.as_quat()),
-                        torch.from_numpy(l_elbow_quat.as_quat()),
-                        torch.from_numpy(l_wrist_quat.as_quat()),
-                        torch.from_numpy(r_shoulder_quat.as_quat()),
-                        torch.from_numpy(r_elbow_quat.as_quat()),
-                        torch.from_numpy(r_wrist_quat.as_quat())], dim=0).float()
-    data = Data(x=torch.cat([x,pos], dim=-1),
-                edge_index=edge_index,
-                edge_attr=edge_attr,
-                pos=pos,
-                q=q,
-                skeleton_type=skeleton_type,
-                topology_type=topology_type,
-                ee_mask=ee_mask,
-                sh_mask=sh_mask,
-                el_mask=el_mask,
-                root_dist=root_dist,
-                shoulder_dist=shoulder_dist,
-                elbow_dist=elbow_dist,
-                num_nodes=num_nodes,
-                parent=parent,
-                offset=offset)
+                     torch.from_numpy(l_elbow_quat.as_quat()),
+                     torch.from_numpy(l_wrist_quat.as_quat()),
+                     torch.from_numpy(r_shoulder_quat.as_quat()),
+                     torch.from_numpy(r_elbow_quat.as_quat()),
+                     torch.from_numpy(r_wrist_quat.as_quat())], dim=0).float()
+    data = Data(x=torch.cat([x, pos], dim=-1), edge_index=edge_index,
+                edge_attr=edge_attr, pos=pos, q=q, skeleton_type=skeleton_type,
+                topology_type=topology_type, ee_mask=ee_mask, sh_mask=sh_mask,
+                el_mask=el_mask, root_dist=root_dist, shoulder_dist=shoulder_dist,
+                elbow_dist=elbow_dist, num_nodes=num_nodes, parent=parent, offset=offset)
     # print(data)
     return data
+
 
 """
 Source Dataset for Sign Language
 """
+
+
 class SignDataset(InMemoryDataset):
     def __init__(self, root, transform=None, pre_transform=None):
         super(SignDataset, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
+        self._raw_file_names = []
 
     @property
     def raw_file_names(self):
@@ -368,6 +387,8 @@ class SignDataset(InMemoryDataset):
 """
 parse h5 with hand
 """
+
+
 def parse_h5_hand(filename, selected_key=None):
     data_list = []
     h5_file = h5py.File(filename, 'r')
@@ -377,7 +398,7 @@ def parse_h5_hand(filename, selected_key=None):
         keys = [selected_key]
     for key in keys:
         if '语句' in key and selected_key is None:
-            print('Skipping'+key)
+            print('Skipping' + key)
             continue
         # glove data
         l_glove_pos = h5_file[key + '/l_glove_pos'][:]
@@ -421,6 +442,7 @@ def parse_h5_hand(filename, selected_key=None):
             data_list.append(data)
     return data_list
 
+
 def parse_glove_pos(glove_pos):
     # x
     x = torch.from_numpy(glove_pos).float()
@@ -429,7 +451,7 @@ def parse_glove_pos(glove_pos):
     num_nodes = 17
 
     # edge index
-    edge_index = torch.LongTensor([[0, 1, 2, 0, 4, 5, 0, 7, 8,  0, 10, 11,  0, 13, 14, 15],
+    edge_index = torch.LongTensor([[0, 1, 2, 0, 4, 5, 0, 7, 8, 0, 10, 11, 0, 13, 14, 15],
                                    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]])
 
     # position
@@ -471,7 +493,7 @@ def parse_glove_pos(glove_pos):
         current_idx = node_idx
         while parent[current_idx] != -1:
             origin = offset[current_idx]
-            offsets_mod = math.sqrt(origin[0]**2+origin[1]**2+origin[2]**2)
+            offsets_mod = math.sqrt(origin[0] ** 2 + origin[1] ** 2 + origin[2] ** 2)
             dist += offsets_mod
             current_idx = parent[current_idx]
         root_dist[node_idx] = dist
@@ -483,7 +505,7 @@ def parse_glove_pos(glove_pos):
         current_idx = node_idx
         while current_idx != -1 and not el_mask[current_idx]:
             origin = offset[current_idx]
-            offsets_mod = math.sqrt(origin[0]**2+origin[1]**2+origin[2]**2)
+            offsets_mod = math.sqrt(origin[0] ** 2 + origin[1] ** 2 + origin[2] ** 2)
             dist += offsets_mod
             current_idx = parent[current_idx]
         elbow_dist[node_idx] = dist
@@ -508,6 +530,8 @@ def parse_glove_pos(glove_pos):
 """
 Source Dataset for Sign Language with Hand
 """
+
+
 class SignWithHand(InMemoryDataset):
     def __init__(self, root, transform=None, pre_transform=None):
         super(SignWithHand, self).__init__(root, transform, pre_transform)
@@ -539,57 +563,48 @@ class SignWithHand(InMemoryDataset):
         torch.save((data, slices), self.processed_paths[0])
 
 
-"""
-Target Dataset for Inspire Hand
-"""
 class InspireHand(InMemoryDataset):
+    """
+    Target Dataset for Inspire Hand
+    """
     hand_cfg = {
         'joints_name': [
             'yumi_link_7_r_joint',
             'Link1',
             'Link11',
-            'Link1111',
+            'Link111_shift',
             'Link2',
             'Link22',
-            'Link2222',
             'Link3',
             'Link33',
-            'Link3333',
             'Link4',
             'Link44',
-            'Link4444',
             'Link5',
             'Link51',
             'Link52',
             'Link53',
-            'Link5555',
         ],
         'edges': [
-            ['yumi_link_7_r_joint', 'Link1'],
+            ['yumi_link_7_r_joint', 'Link111_shift'],
             ['Link1', 'Link11'],
-            ['Link11', 'Link1111'],
-            ['yumi_link_7_r_joint', 'Link2'],
+            ['Link111_shift', 'Link2'],
             ['Link2', 'Link22'],
-            ['Link22', 'Link2222'],
-            ['yumi_link_7_r_joint', 'Link3'],
+            ['Link111_shift', 'Link3'],
             ['Link3', 'Link33'],
-            ['Link33', 'Link3333'],
-            ['yumi_link_7_r_joint', 'Link4'],
+            ['Link111_shift', 'Link4'],
             ['Link4', 'Link44'],
-            ['Link44', 'Link4444'],
-            ['yumi_link_7_r_joint', 'Link5'],
+            ['Link111_shift', 'Link5'],
             ['Link5', 'Link51'],
             ['Link51', 'Link52'],
             ['Link52', 'Link53'],
-            ['Link53', 'Link5555'],
         ],
         'root_name': 'yumi_link_7_r_joint',
         'end_effectors': [
-            'Link1111',
-            'Link2222',
-            'Link3333',
-            'Link4444',
-            'Link5555',
+            'Link11',
+            'Link22',
+            'Link33',
+            'Link44',
+            'Link53',
         ],
         'elbows': [
             'Link1',
@@ -599,13 +614,16 @@ class InspireHand(InMemoryDataset):
             'Link5',
         ],
     }
+
     def __init__(self, root, transform=None, pre_transform=None):
         super(InspireHand, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
+        self._raw_file_names = []
 
     @property
     def raw_file_names(self):
-        self._raw_file_names = [os.path.join(self.root, file) for file in os.listdir(self.root) if file.endswith('.urdf')]
+        self._raw_file_names = [os.path.join(self.root, file) for file in
+                                os.listdir(self.root) if file.endswith('.urdf')]
         return self._raw_file_names
 
     @property
@@ -630,6 +648,8 @@ class InspireHand(InMemoryDataset):
 """
 parse h5 with all data
 """
+
+
 def parse_all(filename, selected_key=None):
     data_list = []
     h5_file = h5py.File(filename, 'r')
@@ -639,7 +659,7 @@ def parse_all(filename, selected_key=None):
         keys = [selected_key]
     for key in keys:
         if '语句' in key and selected_key is None:
-            print('Skipping'+key)
+            print('Skipping' + key)
             continue
         # position data
         l_shoulder_pos = h5_file[key + '/l_up_pos'][:]
@@ -716,9 +736,12 @@ def parse_all(filename, selected_key=None):
             data.r_hand_parent = r_hand_data.parent
             data.r_hand_offset = r_hand_data.offset
 
-            arm_data = parse_arm(l_shoulder_euler[t], l_elbow_euler[t], l_wrist_euler[t], r_shoulder_euler[t], r_elbow_euler[t], r_wrist_euler[t],
-                            l_shoulder_pos[t], l_elbow_pos[t], l_wrist_pos[t], r_shoulder_pos[t], r_elbow_pos[t], r_wrist_pos[t],
-                            l_shoulder_quat[t], l_elbow_quat[t], l_wrist_quat[t], r_shoulder_quat[t], r_elbow_quat[t], r_wrist_quat[t])
+            arm_data = parse_arm(l_shoulder_euler[t], l_elbow_euler[t], l_wrist_euler[t], r_shoulder_euler[t],
+                                 r_elbow_euler[t], r_wrist_euler[t],
+                                 l_shoulder_pos[t], l_elbow_pos[t], l_wrist_pos[t], r_shoulder_pos[t], r_elbow_pos[t],
+                                 r_wrist_pos[t],
+                                 l_shoulder_quat[t], l_elbow_quat[t], l_wrist_quat[t], r_shoulder_quat[t],
+                                 r_elbow_quat[t], r_wrist_quat[t])
             data.x = arm_data.x
             data.edge_index = arm_data.edge_index
             data.edge_attr = arm_data.edge_attr
@@ -738,9 +761,12 @@ def parse_all(filename, selected_key=None):
             data_list.append(data)
     return data_list
 
+
 """
 Source Dataset for Sign Language with Hand
 """
+
+
 class SignAll(InMemoryDataset):
     def __init__(self, root, transform=None, pre_transform=None):
         super(SignAll, self).__init__(root, transform, pre_transform)
@@ -775,6 +801,8 @@ class SignAll(InMemoryDataset):
 """
 Target Dataset for Yumi
 """
+
+
 class YumiAll(InMemoryDataset):
     def __init__(self, root, transform=None, pre_transform=None):
         super(YumiAll, self).__init__(root, transform, pre_transform)
@@ -782,7 +810,8 @@ class YumiAll(InMemoryDataset):
 
     @property
     def raw_file_names(self):
-        self._raw_file_names = [os.path.join(self.root, file) for file in os.listdir(self.root) if file.endswith('.urdf')]
+        self._raw_file_names = [os.path.join(self.root, file) for file in os.listdir(self.root) if
+                                file.endswith('.urdf')]
         return self._raw_file_names
 
     @property
@@ -821,8 +850,11 @@ class YumiAll(InMemoryDataset):
 
 if __name__ == '__main__':
     yumi_dataset = YumiDataset(root='./data/target/yumi')
-    sign_dataset = SignDataset(root='./data/source/sign/train', pre_transform=transforms.Compose([Normalize()]))
+    sign_dataset = SignDataset(root='./data/source/sign/train',
+                               pre_transform=transforms.Compose([Normalize()]))
     inspire_hand = InspireHand(root='./data/target/yumi-with-hands')
-    sign_with_hand = SignWithHand(root='./data/source/sign-hand/train', pre_transform=transforms.Compose([Normalize()]))
-    sign_all = SignAll(root='./data/source/sign-all/train', pre_transform=transforms.Compose([Normalize()]))
+    sign_with_hand = SignWithHand(root='./data/source/sign-hand/train',
+                                  pre_transform=transforms.Compose([Normalize()]))
+    sign_all = SignAll(root='./data/source/sign-all/train',
+                       pre_transform=transforms.Compose([Normalize()]))
     yumi_all = YumiAll(root='./data/target/yumi-all')

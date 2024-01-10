@@ -42,16 +42,25 @@ writer = SummaryWriter(os.path.join(cfg.OTHERS.SUMMARY, "{:%Y-%m-%d_%H-%M-%S}".f
 # Device setting
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
 if __name__ == '__main__':
     # Load data
     pre_transform = transforms.Compose([Normalize()])
-    train_set = getattr(dataset, cfg.DATASET.TRAIN.SOURCE_NAME)(root=cfg.DATASET.TRAIN.SOURCE_PATH, pre_transform=pre_transform)
-    train_loader = DataListLoader(train_set, batch_size=cfg.HYPER.BATCH_SIZE, shuffle=True, num_workers=16, pin_memory=True)
-    train_target = sorted([target for target in getattr(dataset, cfg.DATASET.TRAIN.TARGET_NAME)(root=cfg.DATASET.TRAIN.TARGET_PATH)], key=lambda target : target.skeleton_type)
-    test_set = getattr(dataset, cfg.DATASET.TEST.SOURCE_NAME)(root=cfg.DATASET.TEST.SOURCE_PATH, pre_transform=pre_transform)
-    test_loader = DataListLoader(test_set, batch_size=cfg.HYPER.BATCH_SIZE, shuffle=True, num_workers=16, pin_memory=True)
-    test_target = sorted([target for target in getattr(dataset, cfg.DATASET.TEST.TARGET_NAME)(root=cfg.DATASET.TEST.TARGET_PATH)], key=lambda target : target.skeleton_type)
+    train_set = (getattr(dataset, cfg.DATASET.TRAIN.SOURCE_NAME)
+                 (root=cfg.DATASET.TRAIN.SOURCE_PATH, pre_transform=pre_transform))
+    train_loader = DataListLoader(train_set, batch_size=cfg.HYPER.BATCH_SIZE, shuffle=True,
+                                  num_workers=16, pin_memory=True)
+    train_target = sorted([target for target in
+                           getattr(dataset, cfg.DATASET.TRAIN.TARGET_NAME)
+                           (root=cfg.DATASET.TRAIN.TARGET_PATH)],
+                          key=lambda target: target.skeleton_type)
+    test_set = (getattr(dataset, cfg.DATASET.TEST.SOURCE_NAME)
+                (root=cfg.DATASET.TEST.SOURCE_PATH, pre_transform=pre_transform))
+    test_loader = DataListLoader(test_set, batch_size=cfg.HYPER.BATCH_SIZE, shuffle=True,
+                                 num_workers=16, pin_memory=True)
+    test_target = sorted([target for target in
+                          getattr(dataset, cfg.DATASET.TEST.TARGET_NAME)
+                          (root=cfg.DATASET.TEST.TARGET_PATH)],
+                         key=lambda target: target.skeleton_type)
 
     # Create model
     model = getattr(model, cfg.MODEL.NAME)().to(device)
@@ -83,8 +92,10 @@ if __name__ == '__main__':
 
     for epoch in range(cfg.HYPER.EPOCHS):
         # Start training
-        train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion, ori_criterion, fin_criterion, reg_criterion,
-                                 optimizer, train_loader, train_target, epoch, logger, cfg.OTHERS.LOG_INTERVAL, writer, device)
+        train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion,
+                                 lim_criterion, ori_criterion, fin_criterion, reg_criterion,
+                                 optimizer, train_loader, train_target, epoch, logger,
+                                 cfg.OTHERS.LOG_INTERVAL, writer, device)
 
         # Start testing
         test_loss = test_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion, ori_criterion, fin_criterion, reg_criterion,

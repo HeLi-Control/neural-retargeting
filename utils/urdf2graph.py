@@ -1,21 +1,20 @@
 import torch
-import torch.nn as nn
 from torch_geometric.data import Data
 from urdfpy import URDF, matrix_to_xyz_rpy
 import math
 
 
-"""
-convert Yumi URDF to graph
-"""
 def yumi2graph(urdf_file, cfg):
+    """
+    convert Yumi URDF to graph
+    """
     # load URDF
     robot = URDF.load(urdf_file)
 
     # parse joint params
     joints = {}
     for joint in robot.joints:
-        # joint atributes
+        # joint attributes
         joints[joint.name] = {'type': joint.joint_type, 'axis': joint.axis,
                               'parent': joint.parent, 'child': joint.child,
                               'origin': matrix_to_xyz_rpy(joint.origin),
@@ -137,23 +136,11 @@ def yumi2graph(urdf_file, cfg):
     # print(lower.shape, upper.shape)
 
     # skeleton
-    data = Data(x=torch.zeros(num_nodes, 1),
-                edge_index=edge_index,
-                edge_attr=edge_attr,
-                skeleton_type=skeleton_type,
-                topology_type=topology_type,
-                ee_mask=ee_mask,
-                sh_mask=sh_mask,
-                el_mask=el_mask,
-                root_dist=root_dist,
-                shoulder_dist=shoulder_dist,
-                elbow_dist=elbow_dist,
-                num_nodes=num_nodes,
-                parent=parent,
-                offset=offset,
-                axis=axis,
-                lower=lower,
-                upper=upper)
+    data = Data(x=torch.zeros(num_nodes, 1), edge_index=edge_index, edge_attr=edge_attr,
+                skeleton_type=skeleton_type, topology_type=topology_type, ee_mask=ee_mask,
+                sh_mask=sh_mask, el_mask=el_mask, root_dist=root_dist,
+                shoulder_dist=shoulder_dist, elbow_dist=elbow_dist, num_nodes=num_nodes,
+                parent=parent, offset=offset, axis=axis, lower=lower, upper=upper)
 
     # test forward kinematics
     # print(joints_name)
@@ -187,10 +174,11 @@ def yumi2graph(urdf_file, cfg):
 
     return data
 
-"""
-convert Inspire Hand URDF graph
-"""
+
 def hand2graph(urdf_file, cfg):
+    """
+    convert Inspire Hand URDF graph
+    """
     # load URDF
     robot = URDF.load(urdf_file)
 
@@ -217,13 +205,11 @@ def hand2graph(urdf_file, cfg):
     joints_index = {name: i for i, name in enumerate(joints_name)}
     edge_index = []
     edge_attr = []
-    print(cfg['edges'])
     for edge in cfg['edges']:
         parent, child = edge
         # add edge index
         edge_index.append(torch.LongTensor([joints_index[parent], joints_index[child]]))
         # add edge attr
-        print(child)
         edge_attr.append(torch.Tensor(joints[child]['origin']))
     edge_index = torch.stack(edge_index, dim=0)
     edge_index = edge_index.permute(1, 0)
@@ -298,21 +284,11 @@ def hand2graph(urdf_file, cfg):
     # print(lower, upper, lower.shape, upper.shape)
 
     # skeleton
-    data = Data(x=torch.zeros(num_nodes, 1),
-                edge_index=edge_index,
-                edge_attr=edge_attr,
-                skeleton_type=skeleton_type,
-                topology_type=topology_type,
-                ee_mask=ee_mask,
-                el_mask=el_mask,
-                root_dist=root_dist,
-                elbow_dist=elbow_dist,
-                num_nodes=num_nodes,
-                parent=parent,
-                offset=offset,
-                axis=axis,
-                lower=lower,
-                upper=upper)
+    data = Data(x=torch.zeros(num_nodes, 1), edge_index=edge_index, edge_attr=edge_attr,
+                skeleton_type=skeleton_type, topology_type=topology_type, ee_mask=ee_mask,
+                el_mask=el_mask, root_dist=root_dist, elbow_dist=elbow_dist,
+                num_nodes=num_nodes, parent=parent, offset=offset, axis=axis,
+                lower=lower, upper=upper)
     # data for arm with hand
     data.hand_x = data.x
     data.hand_edge_index = data.edge_index
@@ -364,6 +340,7 @@ def hand2graph(urdf_file, cfg):
 
     return data
 
+
 if __name__ == '__main__':
     yumi_cfg = {
         'joints_name': [
@@ -413,7 +390,7 @@ if __name__ == '__main__':
             'yumi_joint_3_r',
         ],
     }
-    graph = yumi2graph(urdf_file='./data/target/yumi/yumi.urdf', cfg=yumi_cfg)
+    graph = yumi2graph(urdf_file='../data/target/yumi/yumi.urdf', cfg=yumi_cfg)
     print('yumi', graph)
 
     hand_cfg = {
@@ -421,48 +398,39 @@ if __name__ == '__main__':
             'yumi_link_7_r_joint',
             'Link1',
             'Link11',
-            'Link1111',
+            'Link111_shift',
             'Link2',
             'Link22',
-            'Link2222',
             'Link3',
             'Link33',
-            'Link3333',
             'Link4',
             'Link44',
-            'Link4444',
             'Link5',
             'Link51',
             'Link52',
             'Link53',
-            'Link5555',
         ],
         'edges': [
-            ['yumi_link_7_r_joint', 'Link1'],
+            ['yumi_link_7_r_joint', 'Link111_shift'],
             ['Link1', 'Link11'],
-            ['Link11', 'Link1111'],
-            ['yumi_link_7_r_joint', 'Link2'],
+            ['Link111_shift', 'Link2'],
             ['Link2', 'Link22'],
-            ['Link22', 'Link2222'],
-            ['yumi_link_7_r_joint', 'Link3'],
+            ['Link111_shift', 'Link3'],
             ['Link3', 'Link33'],
-            ['Link33', 'Link3333'],
-            ['yumi_link_7_r_joint', 'Link4'],
+            ['Link111_shift', 'Link4'],
             ['Link4', 'Link44'],
-            ['Link44', 'Link4444'],
-            ['yumi_link_7_r_joint', 'Link5'],
+            ['Link111_shift', 'Link5'],
             ['Link5', 'Link51'],
             ['Link51', 'Link52'],
             ['Link52', 'Link53'],
-            ['Link53', 'Link5555'],
         ],
         'root_name': 'yumi_link_7_r_joint',
         'end_effectors': [
-            'Link1111',
-            'Link2222',
-            'Link3333',
-            'Link4444',
-            'Link5555',
+            'Link11',
+            'Link22',
+            'Link33',
+            'Link44',
+            'Link53',
         ],
         'elbows': [
             'Link1',
@@ -472,5 +440,6 @@ if __name__ == '__main__':
             'Link5',
         ],
     }
-    graph = hand2graph(urdf_file='./data/target/yumi-with-hands/yumi_with_hands.urdf', cfg=hand_cfg)
+    graph = hand2graph(urdf_file='../data/target/yumi-with-hands/yumi-with-hands.urdf',
+                       cfg=hand_cfg)
     print('hand', graph)
