@@ -185,13 +185,12 @@ def hand2graph(urdf_file, cfg):
     # parse joint params
     joints = {}
     for joint in robot.joints:
-        # joint atributes
+        # joint attributes
         joints[joint.name] = {'type': joint.joint_type, 'axis': joint.axis,
                               'parent': joint.parent, 'child': joint.child,
                               'origin': matrix_to_xyz_rpy(joint.origin),
                               'lower': joint.limit.lower if joint.limit else 0,
                               'upper': joint.limit.upper if joint.limit else 0}
-
     # debug msg
     # for name, attr in joints.items():
     #     print(name, attr)

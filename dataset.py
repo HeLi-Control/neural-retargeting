@@ -645,12 +645,10 @@ class InspireHand(InMemoryDataset):
         torch.save((data, slices), self.processed_paths[0])
 
 
-"""
-parse h5 with all data
-"""
-
-
 def parse_all(filename, selected_key=None):
+    """
+    parse h5 with all data
+    """
     data_list = []
     h5_file = h5py.File(filename, 'r')
     if selected_key is None:
@@ -701,12 +699,16 @@ def parse_all(filename, selected_key=None):
         r_glove_pos = h5_file[key + '/r_glove_pos'][:]
         # insert zero for root
         total_frames = l_glove_pos.shape[0]
-        l_glove_pos = np.concatenate([np.zeros((total_frames, 1, 3)), l_glove_pos], axis=1)
-        r_glove_pos = np.concatenate([np.zeros((total_frames, 1, 3)), r_glove_pos], axis=1)
+        l_glove_pos = np.concatenate([np.zeros((total_frames, 1, 3)), l_glove_pos],
+                                     axis=1)
+        r_glove_pos = np.concatenate([np.zeros((total_frames, 1, 3)), r_glove_pos],
+                                     axis=1)
         # print(l_glove_pos.shape, r_glove_pos.shape)
         # switch dimensions
-        l_glove_pos = np.stack([-l_glove_pos[..., 2], -l_glove_pos[..., 1], -l_glove_pos[..., 0]], axis=-1)
-        r_glove_pos = np.stack([-r_glove_pos[..., 2], -r_glove_pos[..., 1], -r_glove_pos[..., 0]], axis=-1)
+        l_glove_pos = np.stack([-l_glove_pos[..., 2], -l_glove_pos[..., 1],
+                                -l_glove_pos[..., 0]], axis=-1)
+        r_glove_pos = np.stack([-r_glove_pos[..., 2], -r_glove_pos[..., 1],
+                                -r_glove_pos[..., 0]], axis=-1)
 
         for t in range(total_frames):
             data = Data()
@@ -736,12 +738,12 @@ def parse_all(filename, selected_key=None):
             data.r_hand_parent = r_hand_data.parent
             data.r_hand_offset = r_hand_data.offset
 
-            arm_data = parse_arm(l_shoulder_euler[t], l_elbow_euler[t], l_wrist_euler[t], r_shoulder_euler[t],
-                                 r_elbow_euler[t], r_wrist_euler[t],
-                                 l_shoulder_pos[t], l_elbow_pos[t], l_wrist_pos[t], r_shoulder_pos[t], r_elbow_pos[t],
-                                 r_wrist_pos[t],
-                                 l_shoulder_quat[t], l_elbow_quat[t], l_wrist_quat[t], r_shoulder_quat[t],
-                                 r_elbow_quat[t], r_wrist_quat[t])
+            arm_data = parse_arm(l_shoulder_euler[t], l_elbow_euler[t], l_wrist_euler[t],
+                                 r_shoulder_euler[t], r_elbow_euler[t], r_wrist_euler[t],
+                                 l_shoulder_pos[t], l_elbow_pos[t], l_wrist_pos[t],
+                                 r_shoulder_pos[t], r_elbow_pos[t], r_wrist_pos[t],
+                                 l_shoulder_quat[t], l_elbow_quat[t], l_wrist_quat[t],
+                                 r_shoulder_quat[t], r_elbow_quat[t], r_wrist_quat[t])
             data.x = arm_data.x
             data.edge_index = arm_data.edge_index
             data.edge_attr = arm_data.edge_attr
@@ -762,20 +764,21 @@ def parse_all(filename, selected_key=None):
     return data_list
 
 
-"""
-Source Dataset for Sign Language with Hand
-"""
-
-
 class SignAll(InMemoryDataset):
+    """
+    Source Dataset for Sign Language with Hand
+    """
+
     def __init__(self, root, transform=None, pre_transform=None):
         super(SignAll, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
+        self._raw_file_names = []
 
     @property
     def raw_file_names(self):
         data_path = os.path.join(self.root, 'h5')
-        self._raw_file_names = [os.path.join(data_path, file) for file in os.listdir(data_path)]
+        self._raw_file_names = [os.path.join(data_path, file) for file in
+                                os.listdir(data_path)]
         return self._raw_file_names
 
     @property
@@ -798,20 +801,20 @@ class SignAll(InMemoryDataset):
         torch.save((data, slices), self.processed_paths[0])
 
 
-"""
-Target Dataset for Yumi
-"""
-
-
 class YumiAll(InMemoryDataset):
+    """
+    Target Dataset for Yumi
+    """
+
     def __init__(self, root, transform=None, pre_transform=None):
         super(YumiAll, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
+        self._raw_file_names = []
 
     @property
     def raw_file_names(self):
-        self._raw_file_names = [os.path.join(self.root, file) for file in os.listdir(self.root) if
-                                file.endswith('.urdf')]
+        self._raw_file_names = [os.path.join(self.root, file) for file in
+                                os.listdir(self.root) if file.endswith('.urdf')]
         return self._raw_file_names
 
     @property
