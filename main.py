@@ -101,11 +101,10 @@ if __name__ == '__main__':
                                  lim_criterion, ori_criterion, fin_criterion, reg_criterion,
                                  optimizer, train_loader, train_target, epoch, logger,
                                  cfg.OTHERS.LOG_INTERVAL, writer, device)
-
         # Start testing
-        test_loss = test_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion, ori_criterion,
-                               fin_criterion, reg_criterion, test_loader, test_target, epoch, logger, writer, device)
-
+        test_loss = test_epoch(model, ee_criterion, vec_criterion, col_criterion,
+                               lim_criterion, ori_criterion, fin_criterion, reg_criterion,
+                               test_loader, test_target, epoch, logger, writer, device)
         # Save model
         if test_loss < best_loss:
             best_loss = test_loss

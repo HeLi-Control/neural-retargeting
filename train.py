@@ -47,10 +47,11 @@ def train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion
             optimizer.step()
         # log
         if (batch_idx + 1) % log_interval == 0:
-            logger.info("epoch {:04d} | iteration {:05d} | EE {:.6f} | Vec {:.6f} | \
-            Col {:.6f} | Lim {:.6f} | Ori {:.6f} | Fin {:.6f} | Reg {:.6f}".format(
-                epoch + 1, batch_idx + 1, ee_losses[-1], vec_losses[-1], col_losses[-1],
-                lim_losses[-1], ori_losses[-1], fin_losses[-1], reg_losses[-1]))
+            logger.info("epoch {:03d} | iteration {:04d} | EE {:3.6f} | Vec {:.6f} | "\
+                        "Col {:.6f} | Lim {:.6f} | Ori {:.6f} | Fin {:.6f} | Reg {:.6f}"
+                        .format(epoch + 1, batch_idx + 1, ee_losses[-1], vec_losses[-1],
+                                col_losses[-1], lim_losses[-1], ori_losses[-1], fin_losses[-1],
+                                reg_losses[-1]))
     # Compute average loss
     train_loss = sum(all_losses) / len(all_losses)
     ee_loss = sum(ee_losses) / len(ee_losses)
@@ -61,18 +62,19 @@ def train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion
     fin_loss = sum(fin_losses) / len(fin_losses)
     reg_loss = sum(reg_losses) / len(reg_losses)
     # Log
-    writer.add_scalars('training_loss', {'train': train_loss}, epoch+1)
-    writer.add_scalars('end_effector_loss', {'train': ee_loss}, epoch+1)
-    writer.add_scalars('vector_loss', {'train': vec_loss}, epoch+1)
-    writer.add_scalars('collision_loss', {'train': col_loss}, epoch+1)
-    writer.add_scalars('joint_limit_loss', {'train': lim_loss}, epoch+1)
-    writer.add_scalars('orientation_loss', {'train': ori_loss}, epoch+1)
-    writer.add_scalars('finger_loss', {'train': fin_loss}, epoch+1)
-    writer.add_scalars('regularization_loss', {'train': reg_loss}, epoch+1)
+    writer.add_scalars('training_loss', {'train': train_loss}, epoch + 1)
+    writer.add_scalars('end_effector_loss', {'train': ee_loss}, epoch + 1)
+    writer.add_scalars('vector_loss', {'train': vec_loss}, epoch + 1)
+    writer.add_scalars('collision_loss', {'train': col_loss}, epoch + 1)
+    writer.add_scalars('joint_limit_loss', {'train': lim_loss}, epoch + 1)
+    writer.add_scalars('orientation_loss', {'train': ori_loss}, epoch + 1)
+    writer.add_scalars('finger_loss', {'train': fin_loss}, epoch + 1)
+    writer.add_scalars('regularization_loss', {'train': reg_loss}, epoch + 1)
     end_time = time.time()
-    logger.info("Epoch {:04d} | Training Time {:.2f} s | Avg Training Loss {:.6f} | \
-    Avg EE Loss {:.6f} | Avg Vec Loss {:.6f} | Avg Col Loss {:.6f} | Avg Lim Loss {:.6f} | \
-    Avg Ori Loss {:.6f} | Avg Fin Loss {:.6f} | Avg Reg Loss {:.6f}"
-                .format(epoch+1, end_time-start_time, train_loss, ee_loss,
-                        vec_loss, col_loss, lim_loss, ori_loss, fin_loss, reg_loss))
+    logger.info("Epoch {:04d} | Training Time {:.2f} s | Avg Training Loss {:.6f} | " \
+                "Avg EE Loss {:.6f} | Avg Vec Loss {:.6f} | Avg Col Loss {:.6f} | " \
+                "Avg Lim Loss {:.6f} | Avg Ori Loss {:.6f} | Avg Fin Loss {:.6f} | " \
+                "Avg Reg Loss {:.6f}".format(epoch + 1, end_time - start_time,
+                                             train_loss, ee_loss, vec_loss, col_loss,
+                                             lim_loss, ori_loss, fin_loss, reg_loss))
     return train_loss

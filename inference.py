@@ -29,7 +29,6 @@ args = parser.parse_args()
 # Configurations parse
 cfg.merge_from_file(args.cfg)
 cfg.freeze()
-print(cfg)
 
 # Create folder
 create_folder(cfg.OTHERS.LOG)
