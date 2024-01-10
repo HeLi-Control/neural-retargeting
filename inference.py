@@ -15,8 +15,8 @@ from datetime import datetime
 
 import dataset
 from dataset import Normalize, parse_all
-from models import model
 from models.loss import CollisionLoss, JointLimitLoss, RegLoss
+import models.model as model
 from train import train_epoch
 from utils.config import cfg
 from utils.util import create_folder

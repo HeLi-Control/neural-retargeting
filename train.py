@@ -26,13 +26,22 @@ def train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion
             # forward
             if z_all is not None:
                 z = z_all[batch_idx]
-                _, target_ang, target_pos, target_rot, target_global_pos, l_hand_ang, l_hand_pos, r_hand_ang, r_hand_pos = model.decode(z, Batch.from_data_list(target_list).to(device))
+                (_, target_ang, target_pos, target_rot, target_global_pos, l_hand_ang,
+                 l_hand_pos, r_hand_ang, r_hand_pos) = model.decode(
+                    z, Batch.from_data_list(target_list).to(device))
             else:
-                z, target_ang, target_pos, target_rot, target_global_pos, l_hand_ang, l_hand_pos, r_hand_ang, r_hand_pos = model(Batch.from_data_list(data_list).to(device), Batch.from_data_list(target_list).to(device))
+                (z, target_ang, target_pos, target_rot, target_global_pos, l_hand_ang,
+                 l_hand_pos, r_hand_ang, r_hand_pos) = model(
+                    Batch.from_data_list(data_list).to(device),
+                    Batch.from_data_list(target_list).to(device))
 
             # calculate all loss
-            loss = calculate_all_loss(data_list, target_list, ee_criterion, vec_criterion, col_criterion, lim_criterion, ori_criterion, fin_criterion, reg_criterion,
-                                      z, target_ang, target_pos, target_rot, target_global_pos, l_hand_pos, r_hand_pos, all_losses, ee_losses, vec_losses, col_losses, lim_losses, ori_losses, fin_losses, reg_losses)
+            loss = calculate_all_loss(data_list, target_list, ee_criterion, vec_criterion,
+                                      col_criterion, lim_criterion, ori_criterion, fin_criterion,
+                                      reg_criterion, z, target_ang, target_pos, target_rot,
+                                      target_global_pos, l_hand_pos, r_hand_pos, all_losses,
+                                      ee_losses, vec_losses, col_losses, lim_losses, ori_losses,
+                                      fin_losses, reg_losses)
 
             # backward
             loss.backward()

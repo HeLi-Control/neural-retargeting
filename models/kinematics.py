@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 
-"""
-Forward Kinematics for URDF
-"""
-
 
 class ForwardKinematicsURDF(nn.Module):
+    """
+    Forward Kinematics for URDF
+    """
+
     def __init__(self):
         super(ForwardKinematicsURDF, self).__init__()
 
@@ -77,11 +77,11 @@ class ForwardKinematicsURDF(nn.Module):
             transform[..., 1, 1] = transform[..., 2, 2] = cos
             transform[..., 1, 2] = -sin
             transform[..., 2, 1] = sin
-        if axis == 'y':
+        elif axis == 'y':
             transform[..., 0, 0] = transform[..., 2, 2] = cos
             transform[..., 0, 2] = sin
             transform[..., 2, 0] = -sin
-        if axis == 'z':
+        elif axis == 'z':
             transform[..., 0, 0] = transform[..., 1, 1] = cos
             transform[..., 0, 1] = -sin
             transform[..., 1, 0] = sin
@@ -89,12 +89,11 @@ class ForwardKinematicsURDF(nn.Module):
         return transform
 
 
-"""
-Forward Kinematics with Different Axes
-"""
-
-
 class ForwardKinematicsAxis(nn.Module):
+    """
+    Forward Kinematics with Different Axes
+    """
+
     def __init__(self):
         super(ForwardKinematicsAxis, self).__init__()
 
@@ -169,15 +168,14 @@ class ForwardKinematicsAxis(nn.Module):
             transform[..., 1, 1] = transform[..., 2, 2] = cos
             transform[..., 1, 2] = -sin
             transform[..., 2, 1] = sin
-        if axis == 'y':
+        elif axis == 'y':
             transform[..., 0, 0] = transform[..., 2, 2] = cos
             transform[..., 0, 2] = sin
             transform[..., 2, 0] = -sin
-        if axis == 'z':
+        elif axis == 'z':
             transform[..., 0, 0] = transform[..., 1, 1] = cos
             transform[..., 0, 1] = -sin
             transform[..., 1, 0] = sin
-
         return transform
 
     @staticmethod
@@ -198,5 +196,4 @@ class ForwardKinematicsAxis(nn.Module):
         transform[..., 2, 0] = n1 * n3 * (1 - cos) - n2 * sin
         transform[..., 2, 1] = n2 * n3 * (1 - cos) + n1 * sin
         transform[..., 2, 2] = cos + n3 * n3 * (1 - cos)
-
         return transform

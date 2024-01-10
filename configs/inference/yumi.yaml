@@ -6,7 +6,7 @@ DATASET:
     TARGET_PATH: "./data/target/yumi-all"
 MODEL:
   NAME: "YumiNet"
-  CHECKPOINT: "./saved/models/yumi/best_model_epoch_0003.pth"
+  CHECKPOINT: "./saved/models/yumi/checkpoint.pth"
 HYPER:
   EPOCHS: 1
   BATCH_SIZE: 16

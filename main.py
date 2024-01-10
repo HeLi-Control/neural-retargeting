@@ -21,7 +21,8 @@ from datetime import datetime
 
 # Argument parse
 parser = argparse.ArgumentParser(description='Command line arguments')
-parser.add_argument('--cfg', default='configs/train/yumi.yaml', type=str, help='Path to configuration file')
+parser.add_argument('--cfg', default='configs/train/yumi.yaml',
+                    type=str, help='Path to configuration file')
 args = parser.parse_args()
 
 # Configurations parse
@@ -35,9 +36,14 @@ create_folder(cfg.OTHERS.LOG)
 create_folder(cfg.OTHERS.SUMMARY)
 
 # Create logger & tensorboard writer
-logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[logging.FileHandler(os.path.join(cfg.OTHERS.LOG, "{:%Y-%m-%d_%H-%M-%S}.log".format(datetime.now()))), logging.StreamHandler()])
+logging.basicConfig(level=logging.INFO, format="%(message)s",
+                    handlers=[logging.FileHandler(os.path.join(cfg.OTHERS.LOG,
+                                                               "{:%Y-%m-%d_%H-%M-%S}.log"\
+                                                               .format(datetime.now()))),
+                              logging.StreamHandler()])
 logger = logging.getLogger()
-writer = SummaryWriter(os.path.join(cfg.OTHERS.SUMMARY, "{:%Y-%m-%d_%H-%M-%S}".format(datetime.now())))
+writer = SummaryWriter(os.path.join(cfg.OTHERS.SUMMARY,
+                                    "{:%Y-%m-%d_%H-%M-%S}".format(datetime.now())))
 
 # Device setting
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -98,11 +104,12 @@ if __name__ == '__main__':
                                  cfg.OTHERS.LOG_INTERVAL, writer, device)
 
         # Start testing
-        test_loss = test_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion, ori_criterion, fin_criterion, reg_criterion,
-                               test_loader, test_target, epoch, logger, cfg.OTHERS.LOG_INTERVAL, writer, device)
+        test_loss = test_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion, ori_criterion,
+                               fin_criterion, reg_criterion, test_loader, test_target, epoch, logger, writer, device)
 
         # Save model
         if test_loss < best_loss:
             best_loss = test_loss
-            torch.save(model.state_dict(), os.path.join(cfg.OTHERS.SAVE, "best_model_epoch_{:04d}.pth".format(epoch)))
+            torch.save(model.state_dict(), os.path.join(
+                cfg.OTHERS.SAVE, "best_model_epoch_{:04d}.pth".format(epoch)))
             logger.info("Epoch {} Model Saved".format(epoch+1).center(60, '-'))

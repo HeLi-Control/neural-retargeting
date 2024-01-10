@@ -1,12 +1,16 @@
+import inspect
+import os
+import sys
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn.conv import MessagePassing
 
-import os, inspect, sys
+from models.kinematics import ForwardKinematicsURDF, ForwardKinematicsAxis
+
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 sys.path.insert(0, currentdir)
-from kinematics import ForwardKinematicsURDF, ForwardKinematicsAxis
 
 
 class SpatialBasicBlock(MessagePassing):
@@ -83,10 +87,7 @@ class ArmNet(torch.nn.Module):
     def __init__(self):
         super(ArmNet, self).__init__()
         self.encoder = Encoder(6, 3)
-        self.transform = nn.Sequential(
-            nn.Linear(6*64, 14*64),
-            nn.Tanh(),
-        )
+        self.transform = nn.Sequential(nn.Linear(6*64, 14*64), nn.Tanh())
         self.decoder = Decoder(1, 6)
         self.fk = ForwardKinematicsURDF()
     
@@ -109,10 +110,7 @@ class HandNet(torch.nn.Module):
     def __init__(self):
         super(HandNet, self).__init__()
         self.encoder = Encoder(3, 3)
-        self.transform = nn.Sequential(
-            nn.Linear(17*64, 18*64),
-            nn.Tanh(),
-        )
+        self.transform = nn.Sequential(nn.Linear(17*64, 18*64), nn.Tanh())
         self.decoder = Decoder(1, 6)
         self.fk = ForwardKinematicsAxis()
 
