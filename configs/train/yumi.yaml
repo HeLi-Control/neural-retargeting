@@ -24,6 +24,7 @@ LOSS:
   COL_THRESHOLD: 0.15
   LIM: False
   ORI: True
+  ORI_LOSS_CALC_METHOD: False
   FIN: True
   REG: True
   LOSS_USING_GAIN: True

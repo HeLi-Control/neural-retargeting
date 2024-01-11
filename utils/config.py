@@ -32,6 +32,7 @@ _C.LOSS.COL = False
 _C.LOSS.COL_THRESHOLD = None
 _C.LOSS.LIM = False
 _C.LOSS.ORI = False
+_C.LOSS.ORI_LOSS_CALC_METHOD = None
 _C.LOSS.FIN = False
 _C.LOSS.REG = False
 _C.LOSS.LOSS_USING_GAIN = False

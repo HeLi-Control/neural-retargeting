@@ -22,7 +22,6 @@ parser = argparse.ArgumentParser(description='Command line arguments')
 parser.add_argument('--cfg', default='configs/train/yumi.yaml',
                     type=str, help='Path to configuration file')
 args = parser.parse_args()
-
 # Configurations parse
 cfg.merge_from_file(args.cfg)
 cfg.freeze()
