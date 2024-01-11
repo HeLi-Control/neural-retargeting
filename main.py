@@ -132,4 +132,5 @@ if __name__ == '__main__':
             best_loss = test_loss
             torch.save(model.state_dict(), os.path.join(
                 cfg.OTHERS.SAVE, "best_model_epoch_{:04d}.pth".format(epoch)))
-            logger.info("Epoch {} Model Saved".format(epoch + 1).center(80, '-'))
+            logger.info("Epoch {} Model Saved".format(epoch + 1).center(
+                80, '-'))

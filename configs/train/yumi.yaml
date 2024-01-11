@@ -12,11 +12,11 @@ DATASET:
 MODEL:
   NAME: "YumiNet"
 HYPER:
-  EPOCHS: 20
+  EPOCHS: 25
   BATCH_SIZE: 35
-  LEARNING_RATE: 0.00006
+  LEARNING_RATE: 0.00008
   VARIABLE_LEARNING_RATE: True
-  VARIABLE_LEARNING_RATE_GAIN: 8
+  VARIABLE_LEARNING_RATE_GAIN: 9
 LOSS:
   EE: True
   VEC: True
@@ -27,10 +27,10 @@ LOSS:
   FIN: True
   REG: True
   LOSS_USING_GAIN: True
-#              ee, vec, col, lim, ori, fin, reg
-  LOSS_GAIN: [[2], [2], [1], [1], [2], [2], [1]]
+#               ee,    vec,   col,  lim,   ori,   fin,   reg
+  LOSS_GAIN: [[2000], [200], [100], [0], [2000], [800], [15]]
 OTHERS:
   SAVE: "./saved/models/yumi"
   LOG: "./saved/log/yumi"
   SUMMARY: "./saved/runs/yumi"
-  LOG_INTERVAL: 38
+  LOG_INTERVAL: 39

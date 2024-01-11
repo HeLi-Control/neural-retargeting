@@ -85,12 +85,12 @@ class YumiDataset(InMemoryDataset):
             'yumi_joint_6_r',
         ],
         'shoulders': [
-            'yumi_joint_2_l',
-            'yumi_joint_2_r',
+            'yumi_joint_1_l',
+            'yumi_joint_1_r',
         ],
         'elbows': [
-            'yumi_joint_3_l',
-            'yumi_joint_3_r',
+            'yumi_joint_4_l',
+            'yumi_joint_4_r',
         ],
     }
 
@@ -384,12 +384,10 @@ class SignDataset(InMemoryDataset):
         torch.save((data, slices), self.processed_paths[0])
 
 
-"""
-parse h5 with hand
-"""
-
-
 def parse_h5_hand(filename, selected_key=None):
+    """
+    parse h5 with hand
+    """
     data_list = []
     h5_file = h5py.File(filename, 'r')
     if selected_key is None:
@@ -405,12 +403,16 @@ def parse_h5_hand(filename, selected_key=None):
         r_glove_pos = h5_file[key + '/r_glove_pos'][:]
         # insert zero for root
         total_frames = l_glove_pos.shape[0]
-        l_glove_pos = np.concatenate([np.zeros((total_frames, 1, 3)), l_glove_pos], axis=1)
-        r_glove_pos = np.concatenate([np.zeros((total_frames, 1, 3)), r_glove_pos], axis=1)
+        l_glove_pos = np.concatenate([np.zeros((total_frames, 1, 3)),
+                                      l_glove_pos], axis=1)
+        r_glove_pos = np.concatenate([np.zeros((total_frames, 1, 3)),
+                                      r_glove_pos], axis=1)
         # print(l_glove_pos.shape, r_glove_pos.shape)
         # switch dimensions
-        l_glove_pos = np.stack([-l_glove_pos[..., 2], -l_glove_pos[..., 1], -l_glove_pos[..., 0]], axis=-1)
-        r_glove_pos = np.stack([-r_glove_pos[..., 2], -r_glove_pos[..., 1], -r_glove_pos[..., 0]], axis=-1)
+        l_glove_pos = np.stack([-l_glove_pos[..., 2], -l_glove_pos[..., 1],
+                                -l_glove_pos[..., 0]], axis=-1)
+        r_glove_pos = np.stack([-r_glove_pos[..., 2], -r_glove_pos[..., 1],
+                                -r_glove_pos[..., 0]], axis=-1)
 
         for t in range(total_frames):
             data = parse_glove_pos(l_glove_pos[t])
@@ -446,17 +448,13 @@ def parse_h5_hand(filename, selected_key=None):
 def parse_glove_pos(glove_pos):
     # x
     x = torch.from_numpy(glove_pos).float()
-
     # number of nodes
     num_nodes = 17
-
     # edge index
     edge_index = torch.LongTensor([[0, 1, 2, 0, 4, 5, 0, 7, 8, 0, 10, 11, 0, 13, 14, 15],
                                    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]])
-
     # position
     pos = torch.from_numpy(glove_pos).float()
-
     # edge attributes
     edge_attr = []
     for edge in edge_index.permute(1, 0):
@@ -464,28 +462,22 @@ def parse_glove_pos(glove_pos):
         child = edge[1]
         edge_attr.append(pos[child] - pos[parent])
     edge_attr = torch.stack(edge_attr, dim=0)
-
     # skeleton type & topology type
     skeleton_type = 0
     topology_type = 0
-
     # end effector mask
     ee_mask = torch.zeros(num_nodes, 1).bool()
     ee_mask[3] = ee_mask[6] = ee_mask[9] = ee_mask[12] = ee_mask[16] = True
-
     # elbow mask
     el_mask = torch.zeros(num_nodes, 1).bool()
     el_mask[1] = el_mask[4] = el_mask[7] = el_mask[10] = el_mask[13] = True
-
     # parent
     parent = torch.LongTensor([-1, 0, 1, 2, 0, 4, 5, 0, 7, 8, 0, 10, 11, 0, 13, 14, 15])
-
     # offset
     offset = torch.zeros(num_nodes, 3)
     for node_idx in range(num_nodes):
         if parent[node_idx] != -1:
             offset[node_idx] = pos[node_idx] - pos[parent[node_idx]]
-
     # distance to root
     root_dist = torch.zeros(num_nodes, 1)
     for node_idx in range(num_nodes):
@@ -497,7 +489,6 @@ def parse_glove_pos(glove_pos):
             dist += offsets_mod
             current_idx = parent[current_idx]
         root_dist[node_idx] = dist
-
     # distance to elbow
     elbow_dist = torch.zeros(num_nodes, 1)
     for node_idx in range(num_nodes):
@@ -509,30 +500,19 @@ def parse_glove_pos(glove_pos):
             dist += offsets_mod
             current_idx = parent[current_idx]
         elbow_dist[node_idx] = dist
-
-    data = Data(x=x,
-                edge_index=edge_index,
-                edge_attr=edge_attr,
-                pos=pos,
-                skeleton_type=skeleton_type,
-                topology_type=topology_type,
-                ee_mask=ee_mask,
-                el_mask=el_mask,
-                root_dist=root_dist,
-                elbow_dist=elbow_dist,
-                num_nodes=num_nodes,
-                parent=parent,
+    data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, pos=pos,
+                skeleton_type=skeleton_type, topology_type=topology_type,
+                ee_mask=ee_mask, el_mask=el_mask, root_dist=root_dist,
+                elbow_dist=elbow_dist, num_nodes=num_nodes, parent=parent,
                 offset=offset)
     # print(data)
     return data
 
 
-"""
-Source Dataset for Sign Language with Hand
-"""
-
-
 class SignWithHand(InMemoryDataset):
+    """
+    Source Dataset for Sign Language with Hand
+    """
     def __init__(self, root, transform=None, pre_transform=None):
         super(SignWithHand, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
@@ -552,13 +532,10 @@ class SignWithHand(InMemoryDataset):
         for file in self.raw_file_names:
             data = parse_h5_hand(file)
             data_list.extend(data)
-
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
-
         if self.pre_transform is not None:
             data_list = [self.pre_transform(data) for data in data_list]
-
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
 
@@ -569,10 +546,9 @@ class InspireHand(InMemoryDataset):
     """
     hand_cfg = {
         'joints_name': [
-            'yumi_link_7_r_joint',
+            'Link111_shift',
             'Link1',
             'Link11',
-            'Link111_shift',
             'Link2',
             'Link22',
             'Link3',
@@ -585,7 +561,7 @@ class InspireHand(InMemoryDataset):
             'Link53',
         ],
         'edges': [
-            ['yumi_link_7_r_joint', 'Link111_shift'],
+            ['Link111_shift', 'Link1'],
             ['Link1', 'Link11'],
             ['Link111_shift', 'Link2'],
             ['Link2', 'Link22'],
@@ -598,7 +574,7 @@ class InspireHand(InMemoryDataset):
             ['Link51', 'Link52'],
             ['Link52', 'Link53'],
         ],
-        'root_name': 'yumi_link_7_r_joint',
+        'root_name': 'Link111_shift',
         'end_effectors': [
             'Link11',
             'Link22',
@@ -790,13 +766,10 @@ class SignAll(InMemoryDataset):
         for file in self.raw_file_names:
             data = parse_all(file)
             data_list.extend(data)
-
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
-
         if self.pre_transform is not None:
             data_list = [self.pre_transform(data) for data in data_list]
-
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
 
@@ -840,13 +813,10 @@ class YumiAll(InMemoryDataset):
             data.hand_lower = hand_data.lower
             data.hand_upper = hand_data.upper
             data_list.append(data)
-
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
-
         if self.pre_transform is not None:
             data_list = [self.pre_transform(data) for data in data_list]
-
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
 
