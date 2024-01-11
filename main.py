@@ -18,9 +18,13 @@ import argparse
 from datetime import datetime
 
 # Argument parse
-parser = argparse.ArgumentParser(description='Command line arguments')
-parser.add_argument('--cfg', default='configs/train/yumi.yaml',
-                    type=str, help='Path to configuration file')
+parser = argparse.ArgumentParser(description="Command line arguments")
+parser.add_argument(
+    "--cfg",
+    default="configs/train/yumi.yaml",
+    type=str,
+    help="Path to configuration file",
+)
 args = parser.parse_args()
 # Configurations parse
 cfg.merge_from_file(args.cfg)
@@ -32,37 +36,67 @@ create_folder(cfg.OTHERS.LOG)
 create_folder(cfg.OTHERS.SUMMARY)
 
 # Create logger & tensorboard writer
-logging.basicConfig(level=logging.INFO, format="%(message)s",
-                    handlers=[logging.FileHandler(os.path.join(cfg.OTHERS.LOG,
-                                                               "{:%Y-%m-%d_%H-%M-%S}.log"
-                                                               .format(datetime.now()))),
-                              logging.StreamHandler()])
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[
+        logging.FileHandler(
+            os.path.join(
+                cfg.OTHERS.LOG, "{:%Y-%m-%d_%H-%M-%S}.log".format(datetime.now())
+            )
+        ),
+        logging.StreamHandler(),
+    ],
+)
 logger = logging.getLogger()
-writer = SummaryWriter(os.path.join(cfg.OTHERS.SUMMARY,
-                                    "{:%Y-%m-%d_%H-%M-%S}".format(datetime.now())))
+writer = SummaryWriter(
+    os.path.join(cfg.OTHERS.SUMMARY, "{:%Y-%m-%d_%H-%M-%S}".format(datetime.now()))
+)
 
 # Device setting
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Load data
     pre_transform = transforms.Compose([Normalize()])
-    train_set = (getattr(dataset, cfg.DATASET.TRAIN.SOURCE_NAME)
-                 (root=cfg.DATASET.TRAIN.SOURCE_PATH, pre_transform=pre_transform))
-    train_loader = DataListLoader(train_set, batch_size=cfg.HYPER.BATCH_SIZE, shuffle=True,
-                                  num_workers=8, pin_memory=True)
-    train_target = sorted([target for target in
-                           getattr(dataset, cfg.DATASET.TRAIN.TARGET_NAME)
-                           (root=cfg.DATASET.TRAIN.TARGET_PATH)],
-                          key=lambda target: target.skeleton_type)
-    test_set = (getattr(dataset, cfg.DATASET.TEST.SOURCE_NAME)
-                (root=cfg.DATASET.TEST.SOURCE_PATH, pre_transform=pre_transform))
-    test_loader = DataListLoader(test_set, batch_size=cfg.HYPER.BATCH_SIZE, shuffle=True,
-                                 num_workers=8, pin_memory=True)
-    test_target = sorted([target for target in
-                          getattr(dataset, cfg.DATASET.TEST.TARGET_NAME)
-                          (root=cfg.DATASET.TEST.TARGET_PATH)],
-                         key=lambda target: target.skeleton_type)
+    train_set = getattr(dataset, cfg.DATASET.TRAIN.SOURCE_NAME)(
+        root=cfg.DATASET.TRAIN.SOURCE_PATH, pre_transform=pre_transform
+    )
+    train_loader = DataListLoader(
+        train_set,
+        batch_size=cfg.HYPER.BATCH_SIZE,
+        shuffle=True,
+        num_workers=8,
+        pin_memory=True,
+    )
+    train_target = sorted(
+        [
+            target
+            for target in getattr(dataset, cfg.DATASET.TRAIN.TARGET_NAME)(
+                root=cfg.DATASET.TRAIN.TARGET_PATH
+            )
+        ],
+        key=lambda target: target.skeleton_type,
+    )
+    test_set = getattr(dataset, cfg.DATASET.TEST.SOURCE_NAME)(
+        root=cfg.DATASET.TEST.SOURCE_PATH, pre_transform=pre_transform
+    )
+    test_loader = DataListLoader(
+        test_set,
+        batch_size=cfg.HYPER.BATCH_SIZE,
+        shuffle=True,
+        num_workers=8,
+        pin_memory=True,
+    )
+    test_target = sorted(
+        [
+            target
+            for target in getattr(dataset, cfg.DATASET.TEST.TARGET_NAME)(
+                root=cfg.DATASET.TEST.TARGET_PATH
+            )
+        ],
+        key=lambda target: target.skeleton_type,
+    )
 
     # Create model
     model = getattr(model, cfg.MODEL.NAME)().to(device)
@@ -70,7 +104,7 @@ if __name__ == '__main__':
     # Load checkpoint
     if cfg.MODEL.CHECKPOINT is not None:
         model.load_state_dict(torch.load(cfg.MODEL.CHECKPOINT))
-        print('loaded checkpoint')
+        print("loaded checkpoint")
 
     # Create loss criterion
     # end effector loss
@@ -91,7 +125,7 @@ if __name__ == '__main__':
     # Create optimizer
     optimizer = optim.Adam(model.parameters(), lr=cfg.HYPER.LEARNING_RATE)
 
-    best_loss = float('Inf')
+    best_loss = float("Inf")
 
     epoch_all = cfg.HYPER.EPOCHS
     for epoch in range(epoch_all):
@@ -99,37 +133,97 @@ if __name__ == '__main__':
             # Set learning rate
             if cfg.HYPER.VARIABLE_LEARNING_RATE:
                 gain = cfg.HYPER.VARIABLE_LEARNING_RATE_GAIN
-                optimizer.lr = (cfg.HYPER.LEARNING_RATE * (1 + gain)
-                                / (1 + gain * epoch / epoch_all))
+                optimizer.lr = (
+                    cfg.HYPER.LEARNING_RATE
+                    * (1 + gain)
+                    / (1 + gain * epoch / epoch_all)
+                )
             else:
                 optimizer.lr = cfg.HYPER.LEARNING_RATE
             # Start training
-            train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion,
-                                     lim_criterion, ori_criterion, fin_criterion,
-                                     reg_criterion, optimizer, train_loader, train_target,
-                                     epoch, logger, cfg.OTHERS.LOG_INTERVAL, writer, device,
-                                     torch.tensor(cfg.LOSS.LOSS_GAIN))
+            train_loss = train_epoch(
+                model,
+                ee_criterion,
+                vec_criterion,
+                col_criterion,
+                lim_criterion,
+                ori_criterion,
+                fin_criterion,
+                reg_criterion,
+                optimizer,
+                train_loader,
+                train_target,
+                epoch,
+                logger,
+                cfg.OTHERS.LOG_INTERVAL,
+                writer,
+                device,
+                torch.tensor(cfg.LOSS.LOSS_GAIN),
+            )
             # Start testing
-            test_loss = test_epoch(model, ee_criterion, vec_criterion, col_criterion,
-                                   lim_criterion, ori_criterion, fin_criterion, reg_criterion,
-                                   test_loader, test_target, epoch, logger, writer, device,
-                                   torch.tensor(cfg.LOSS.LOSS_GAIN))
+            test_loss = test_epoch(
+                model,
+                ee_criterion,
+                vec_criterion,
+                col_criterion,
+                lim_criterion,
+                ori_criterion,
+                fin_criterion,
+                reg_criterion,
+                test_loader,
+                test_target,
+                epoch,
+                logger,
+                writer,
+                device,
+                torch.tensor(cfg.LOSS.LOSS_GAIN),
+            )
         else:
             # Start training
-            train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion,
-                                     lim_criterion, ori_criterion, fin_criterion,
-                                     reg_criterion, optimizer, train_loader, train_target,
-                                     epoch, logger, cfg.OTHERS.LOG_INTERVAL, writer, device,
-                                     loss_gain=None)
+            train_loss = train_epoch(
+                model,
+                ee_criterion,
+                vec_criterion,
+                col_criterion,
+                lim_criterion,
+                ori_criterion,
+                fin_criterion,
+                reg_criterion,
+                optimizer,
+                train_loader,
+                train_target,
+                epoch,
+                logger,
+                cfg.OTHERS.LOG_INTERVAL,
+                writer,
+                device,
+                loss_gain=None,
+            )
             # Start testing
-            test_loss = test_epoch(model, ee_criterion, vec_criterion, col_criterion,
-                                   lim_criterion, ori_criterion, fin_criterion, reg_criterion,
-                                   test_loader, test_target, epoch, logger, writer, device,
-                                   loss_gain=None)
+            test_loss = test_epoch(
+                model,
+                ee_criterion,
+                vec_criterion,
+                col_criterion,
+                lim_criterion,
+                ori_criterion,
+                fin_criterion,
+                reg_criterion,
+                test_loader,
+                test_target,
+                epoch,
+                logger,
+                writer,
+                device,
+                loss_gain=None,
+            )
         # Save model
         if test_loss < best_loss:
             best_loss = test_loss
-            torch.save(model.state_dict(), os.path.join(
-                cfg.OTHERS.SAVE, "best_model_epoch_{:04d}.pth".format(epoch)))
-            logger.info("Epoch {} Model Saved".format(epoch + 1).center(
-                80, '-'))
+            torch.save(
+                model.state_dict(),
+                os.path.join(
+                    cfg.OTHERS.SAVE, "best_model_epoch_{:04d}.pth".format(epoch)
+                ),
+            )
+            logger.info("Epoch {} Model Saved".format(epoch + 1).center(100, "-"))

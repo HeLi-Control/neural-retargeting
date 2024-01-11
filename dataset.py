@@ -216,19 +216,19 @@ def parse_h5(filename, selected_key=None):
         l_wrist_pos = h5_file[key + "/l_hd_pos"][:]
         r_wrist_pos = h5_file[key + "/r_hd_pos"][:]
         # quaternion data
-        l_shoulder_quaternion = R.from_quat(h5_file[key + "/l_up_quaternion"][:])
-        r_shoulder_quaternion = R.from_quat(h5_file[key + "/r_up_quaternion"][:])
-        l_elbow_quaternion = R.from_quat(h5_file[key + "/l_fr_quaternion"][:])
-        r_elbow_quaternion = R.from_quat(h5_file[key + "/r_fr_quaternion"][:])
-        l_wrist_quaternion = R.from_quat(h5_file[key + "/l_hd_quaternion"][:])
-        r_wrist_quaternion = R.from_quat(h5_file[key + "/r_hd_quaternion"][:])
+        l_shoulder_quat = R.from_quat(h5_file[key + "/l_up_quat"][:])
+        r_shoulder_quat = R.from_quat(h5_file[key + "/r_up_quat"][:])
+        l_elbow_quat = R.from_quat(h5_file[key + "/l_fr_quat"][:])
+        r_elbow_quat = R.from_quat(h5_file[key + "/r_fr_quat"][:])
+        l_wrist_quat = R.from_quat(h5_file[key + "/l_hd_quat"][:])
+        r_wrist_quat = R.from_quat(h5_file[key + "/r_hd_quat"][:])
         # rotation matrix data
-        l_shoulder_matrix = l_shoulder_quaternion.as_matrix()
-        r_shoulder_matrix = r_shoulder_quaternion.as_matrix()
-        l_elbow_matrix = l_elbow_quaternion.as_matrix()
-        r_elbow_matrix = r_elbow_quaternion.as_matrix()
-        l_wrist_matrix = l_wrist_quaternion.as_matrix()
-        r_wrist_matrix = r_wrist_quaternion.as_matrix()
+        l_shoulder_matrix = l_shoulder_quat.as_matrix()
+        r_shoulder_matrix = r_shoulder_quat.as_matrix()
+        l_elbow_matrix = l_elbow_quat.as_matrix()
+        r_elbow_matrix = r_elbow_quat.as_matrix()
+        l_wrist_matrix = l_wrist_quat.as_matrix()
+        r_wrist_matrix = r_wrist_quat.as_matrix()
         # euler data
         l_shoulder_euler = R.from_matrix(l_shoulder_matrix).as_euler(
             "zyx", degrees=True
@@ -256,12 +256,12 @@ def parse_h5(filename, selected_key=None):
                 r_shoulder_pos[t],
                 r_elbow_pos[t],
                 r_wrist_pos[t],
-                l_shoulder_quaternion[t],
-                l_elbow_quaternion[t],
-                l_wrist_quaternion[t],
-                r_shoulder_quaternion[t],
-                r_elbow_quaternion[t],
-                r_wrist_quaternion[t],
+                l_shoulder_quat[t],
+                l_elbow_quat[t],
+                l_wrist_quat[t],
+                r_shoulder_quat[t],
+                r_elbow_quat[t],
+                r_wrist_quat[t],
             )
             data_list.append(data)
     return data_list, None, None
@@ -280,12 +280,12 @@ def parse_arm(
     r_shoulder_pos,
     r_elbow_pos,
     r_wrist_pos,
-    l_shoulder_quaternion,
-    l_elbow_quaternion,
-    l_wrist_quaternion,
-    r_shoulder_quaternion,
-    r_elbow_quaternion,
-    r_wrist_quaternion,
+    l_shoulder_quat,
+    l_elbow_quat,
+    l_wrist_quat,
+    r_shoulder_quat,
+    r_elbow_quat,
+    r_wrist_quat,
 ):
     # x
     x = torch.stack(
@@ -376,12 +376,12 @@ def parse_arm(
     # quaternion
     q = torch.stack(
         [
-            torch.from_numpy(l_shoulder_quaternion.as_quat()),
-            torch.from_numpy(l_elbow_quaternion.as_quat()),
-            torch.from_numpy(l_wrist_quaternion.as_quat()),
-            torch.from_numpy(r_shoulder_quaternion.as_quat()),
-            torch.from_numpy(r_elbow_quaternion.as_quat()),
-            torch.from_numpy(r_wrist_quaternion.as_quat()),
+            torch.from_numpy(l_shoulder_quat.as_quat()),
+            torch.from_numpy(l_elbow_quat.as_quat()),
+            torch.from_numpy(l_wrist_quat.as_quat()),
+            torch.from_numpy(r_shoulder_quat.as_quat()),
+            torch.from_numpy(r_elbow_quat.as_quat()),
+            torch.from_numpy(r_wrist_quat.as_quat()),
         ],
         dim=0,
     ).float()
@@ -678,19 +678,19 @@ def parse_all(filename, selected_key=None):
         l_wrist_pos = h5_file[key + "/l_hd_pos"][:]
         r_wrist_pos = h5_file[key + "/r_hd_pos"][:]
         # quaternion data
-        l_shoulder_quaternion = R.from_quat(h5_file[key + "/l_up_quaternion"][:])
-        r_shoulder_quaternion = R.from_quat(h5_file[key + "/r_up_quaternion"][:])
-        l_elbow_quaternion = R.from_quat(h5_file[key + "/l_fr_quaternion"][:])
-        r_elbow_quaternion = R.from_quat(h5_file[key + "/r_fr_quaternion"][:])
-        l_wrist_quaternion = R.from_quat(h5_file[key + "/l_hd_quaternion"][:])
-        r_wrist_quaternion = R.from_quat(h5_file[key + "/r_hd_quaternion"][:])
+        l_shoulder_quat = R.from_quat(h5_file[key + "/l_up_quat"][:])
+        r_shoulder_quat = R.from_quat(h5_file[key + "/r_up_quat"][:])
+        l_elbow_quat = R.from_quat(h5_file[key + "/l_fr_quat"][:])
+        r_elbow_quat = R.from_quat(h5_file[key + "/r_fr_quat"][:])
+        l_wrist_quat = R.from_quat(h5_file[key + "/l_hd_quat"][:])
+        r_wrist_quat = R.from_quat(h5_file[key + "/r_hd_quat"][:])
         # rotation matrix data
-        l_shoulder_matrix = l_shoulder_quaternion.as_matrix()
-        r_shoulder_matrix = r_shoulder_quaternion.as_matrix()
-        l_elbow_matrix = l_elbow_quaternion.as_matrix()
-        r_elbow_matrix = r_elbow_quaternion.as_matrix()
-        l_wrist_matrix = l_wrist_quaternion.as_matrix()
-        r_wrist_matrix = r_wrist_quaternion.as_matrix()
+        l_shoulder_matrix = l_shoulder_quat.as_matrix()
+        r_shoulder_matrix = r_shoulder_quat.as_matrix()
+        l_elbow_matrix = l_elbow_quat.as_matrix()
+        r_elbow_matrix = r_elbow_quat.as_matrix()
+        l_wrist_matrix = l_wrist_quat.as_matrix()
+        r_wrist_matrix = r_wrist_quat.as_matrix()
         # euler data
         l_shoulder_euler = R.from_matrix(l_shoulder_matrix).as_euler(
             "zyx", degrees=True
@@ -762,12 +762,12 @@ def parse_all(filename, selected_key=None):
                 r_shoulder_pos[t],
                 r_elbow_pos[t],
                 r_wrist_pos[t],
-                l_shoulder_quaternion[t],
-                l_elbow_quaternion[t],
-                l_wrist_quaternion[t],
-                r_shoulder_quaternion[t],
-                r_elbow_quaternion[t],
-                r_wrist_quaternion[t],
+                l_shoulder_quat[t],
+                l_elbow_quat[t],
+                l_wrist_quat[t],
+                r_shoulder_quat[t],
+                r_elbow_quat[t],
+                r_wrist_quat[t],
             )
             data.x = arm_data.x
             data.edge_index = arm_data.edge_index

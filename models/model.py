@@ -110,7 +110,7 @@ class HandNet(torch.nn.Module):
     def __init__(self):
         super(HandNet, self).__init__()
         self.encoder = Encoder(3, 3)
-        self.transform = nn.Sequential(nn.Linear(17 * 64, 14 * 64), nn.Tanh())
+        self.transform = nn.Sequential(nn.Linear(17 * 64, 13 * 64), nn.Tanh())
         self.decoder = Decoder(1, 6)
         self.fk = ForwardKinematicsAxis()
 
@@ -125,14 +125,6 @@ class HandNet(torch.nn.Module):
         z = self.encoder(x, edge_index, edge_attr)
         z = (self.transform(z.view(2 * data.num_graphs, -1, 64).view(2 * data.num_graphs, -1))
              .view(2 * data.num_graphs, -1, 64).view(-1, 64))
-        # l_hand_z = self.encoder(data.l_hand_x, data.l_hand_edge_index, data.l_hand_edge_attr)
-        # l_hand_z = (self.transform(l_hand_z.view(data.num_graphs, -1, 64)
-        #                           .view(data.num_graphs, -1)).view(data.num_graphs, -1, 64)
-        #             .view(-1, 64))
-        # r_hand_z = self.encoder(data.r_hand_x, data.r_hand_edge_index, data.r_hand_edge_attr)
-        # r_hand_z = (self.transform(r_hand_z.view(data.num_graphs, -1, 64).view(data.num_graphs, -1))
-        #             .view(data.num_graphs, -1, 64).view(-1, 64))
-        # z = torch.cat([l_hand_z, r_hand_z], dim=0)
         return z
 
     def decode(self, z: torch.Tensor, target):
