@@ -22,7 +22,6 @@ class SpatialBasicBlock(MessagePassing):
         self.lin = nn.Linear(2 * in_channels + edge_channels, out_channels, bias=bias)
         self.upsample = nn.Linear(in_channels, out_channels, bias=bias)
         self.bn = nn.BatchNorm1d(out_channels)
-
         self.reset_parameters()
 
     def reset_parameters(self):

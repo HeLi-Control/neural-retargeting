@@ -8,13 +8,12 @@ def train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion
                 ori_criterion, fin_criterion, reg_criterion, optimizer, dataloader,
                 target_skeleton, epoch, logger, log_interval, writer, device,
                 loss_gain=None, z_all=None):
-    logger.info("Training Epoch {}".format(epoch + 1).center(60, '-'))
+    logger.info("Training Epoch {}".format(epoch + 1).center(80, '-'))
     start_time = time.time()
 
     model.train()
     all_losses = ee_losses = vec_losses = col_losses = None
     lim_losses = ori_losses = fin_losses = reg_losses = None
-
     for batch_idx, data_list in enumerate(dataloader):
         for target_idx, target in enumerate(target_skeleton):
             # zero gradient
@@ -52,12 +51,11 @@ def train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion
             optimizer.step()
         # log
         if (batch_idx + 1) % log_interval == 0:
-            logger.info("epoch {:03d} | iteration {:04d} | EE {:.4f} | Vec {:.4f} | "\
-                        "Col {:.4f} | Lim {:.4f} | Ori {:.4f} | Fin {:.4f} | Reg {:.4f}"
-                        .format(epoch + 1, batch_idx + 1, ee_losses[-1], vec_losses[-1],
-                                col_losses[-1], lim_losses[-1], ori_losses[-1], fin_losses[-1],
-                                reg_losses[-1]))
-            exit(1)
+            logger.info("epoch {:03d} | iteration {:03d} | Sum {:.3f} | EE {:.3f} | Vec {:.3f}"
+                        " | Col {:.3f} | Lim {:.3f} | Ori {:.3f} | Fin {:.3f} | Reg {:.3f}"
+                        .format(epoch + 1, batch_idx + 1, all_losses[-1], ee_losses[-1],
+                                vec_losses[-1], col_losses[-1], lim_losses[-1], ori_losses[-1],
+                                fin_losses[-1], reg_losses[-1]))
     # Compute average loss
     train_loss = sum(all_losses) / len(all_losses)
     ee_loss = sum(ee_losses) / len(ee_losses)
@@ -77,9 +75,9 @@ def train_epoch(model, ee_criterion, vec_criterion, col_criterion, lim_criterion
     writer.add_scalars('finger_loss', {'train': fin_loss}, epoch + 1)
     writer.add_scalars('regularization_loss', {'train': reg_loss}, epoch + 1)
     end_time = time.time()
-    logger.info("Epoch {:03d} | Training Time {:.2f} s | Avg Training Loss {:.4f} | " \
-                "Avg EE {:.4f} | Avg Vec {:.4f} | Avg Col {:.4f} | Avg Lim {:.4f} | " \
-                "Avg Ori {:.4f} | Avg Fin {:.4f} | Avg Reg {:.4f}"
+    logger.info("Epoch {:03d} | Training Time {:.2f} s | Avg Training {:.3f} | " \
+                "Avg EE {:.3f} | Avg Vec {:.3f} | Avg Col {:.3f} | Avg Lim {:.3f} | " \
+                "Avg Ori {:.3f} | Avg Fin {:.3f} | Avg Reg {:.3f}"
                 .format(epoch + 1, end_time - start_time, train_loss, ee_loss,
                         vec_loss, col_loss, lim_loss, ori_loss, fin_loss, reg_loss))
     return train_loss

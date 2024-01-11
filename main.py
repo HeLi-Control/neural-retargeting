@@ -71,6 +71,7 @@ if __name__ == '__main__':
     # Load checkpoint
     if cfg.MODEL.CHECKPOINT is not None:
         model.load_state_dict(torch.load(cfg.MODEL.CHECKPOINT))
+        print('loaded checkpoint')
 
     # Create loss criterion
     # end effector loss
@@ -93,8 +94,16 @@ if __name__ == '__main__':
 
     best_loss = float('Inf')
 
-    for epoch in range(cfg.HYPER.EPOCHS):
+    epoch_all = cfg.HYPER.EPOCHS
+    for epoch in range(epoch_all):
         if cfg.LOSS.LOSS_USING_GAIN:
+            # Set learning rate
+            if cfg.HYPER.VARIABLE_LEARNING_RATE:
+                gain = cfg.HYPER.VARIABLE_LEARNING_RATE_GAIN
+                optimizer.lr = (cfg.HYPER.LEARNING_RATE * (1 + gain)
+                                / (1 + gain * epoch / epoch_all))
+            else:
+                optimizer.lr = cfg.HYPER.LEARNING_RATE
             # Start training
             train_loss = train_epoch(model, ee_criterion, vec_criterion, col_criterion,
                                      lim_criterion, ori_criterion, fin_criterion,
@@ -123,4 +132,4 @@ if __name__ == '__main__':
             best_loss = test_loss
             torch.save(model.state_dict(), os.path.join(
                 cfg.OTHERS.SAVE, "best_model_epoch_{:04d}.pth".format(epoch)))
-            logger.info("Epoch {} Model Saved".format(epoch + 1).center(60, '-'))
+            logger.info("Epoch {} Model Saved".format(epoch + 1).center(80, '-'))

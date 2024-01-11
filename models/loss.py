@@ -51,12 +51,11 @@ def calculate_all_loss(data_list, target_list, ee_criterion, vec_criterion, col_
         col_loss = (col_criterion(
             target_global_pos.view(len(target_list), -1, 3), target_list[0].edge_index,
             target_rot.view(len(target_list), -1, 9), target_list[0].ee_mask) *
-                    10000 * float(loss_gain[2]))
+                    150 * float(loss_gain[2]))
         col_losses.append(col_loss.item())
     else:
         col_loss = 0
         col_losses.append(0)
-    print(col_loss)
     # joint limit loss
     if lim_criterion:
         lim_loss = (calculate_lim_loss(target_list, target_ang, lim_criterion) * 100000 *
@@ -65,11 +64,10 @@ def calculate_all_loss(data_list, target_list, ee_criterion, vec_criterion, col_
     else:
         lim_loss = 0
         lim_losses.append(0)
-    print(lim_loss)
     # end effector orientation loss
     if ori_criterion:
         ori_loss = (calculate_ori_loss(data_list, target_list, target_rot, ori_criterion) *
-                    1000 * float(loss_gain[4]))
+                    500 * float(loss_gain[4]))
         ori_losses.append(ori_loss.item())
     else:
         ori_loss = 0
@@ -77,14 +75,14 @@ def calculate_all_loss(data_list, target_list, ee_criterion, vec_criterion, col_
     # finger similarity loss
     if fin_criterion:
         fin_loss = calculate_fin_loss(data_list, target_list, l_hand_pos, r_hand_pos,
-                                      fin_criterion) * 100 * float(loss_gain[5])
+                                      fin_criterion) * 200 * float(loss_gain[5])
         fin_losses.append(fin_loss.item())
     else:
         fin_loss = 0
         fin_losses.append(0)
     # regularization loss
     if reg_criterion:
-        reg_loss = reg_criterion(z.view(len(target_list), -1, 64)) * float(loss_gain[6])
+        reg_loss = reg_criterion(z.view(len(target_list), -1, 64)) * 10 * float(loss_gain[6])
         reg_losses.append(reg_loss.item())
     else:
         reg_loss = 0
@@ -257,7 +255,6 @@ class CollisionLoss(nn.Module):
             dist_square = torch.sum(torch.pow(l_sphere - r_sphere, 2), dim=-1)
             mask = torch.tensor((dist_square < self.threshold ** 2) & (dist_square > 0))
             loss = torch.sum(torch.exp(-1 * torch.masked_select(dist_square, mask))) / batch_size
-
         # sphere-capsule detection
         if self.mode == 'sphere-capsule':
             # capsule p0 & p1
@@ -314,7 +311,7 @@ class CollisionLoss(nn.Module):
             dist_square = self.capsule_capsule_dist_square(l_capsule_p0, l_capsule_p1, r_capsule_p0, r_capsule_p1,
                                                            batch_size, num_edges)
             mask = (dist_square < 0.1 ** 2) & (dist_square > 0)
-            mask[:, 6, 6] = (dist_square[:, 6, 6] < self.threshold ** 2) & (dist_square[:, 6, 6] > 0)
+            mask[:, 6, 6] = (dist_square[:, 6, 6] > self.threshold ** 2) & (dist_square[:, 6, 6] > 0)
             loss = torch.sum(torch.exp(-1 * torch.masked_select(dist_square, mask))) / batch_size
         return loss
 
@@ -450,12 +447,10 @@ class JointLimitLoss(nn.Module):
         # calculate mask with limit
         lower_mask = torch.tensor(ang < lower)
         upper_mask = torch.tensor(ang > upper)
-
         # calculate final loss
         lower_loss = torch.sum(torch.masked_select(lower - ang, lower_mask))
         upper_loss = torch.sum(torch.masked_select(ang - upper, upper_mask))
         loss = (lower_loss + upper_loss) / ang.shape[0]
-
         return loss
 
 
