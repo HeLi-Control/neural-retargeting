@@ -1,0 +1,10 @@
+HYPER:
+  EPOCHS: 30
+  BATCH_SIZE: 35
+  LEARNING_RATE: 0.00005
+  VARIABLE_LEARNING_RATE: True
+  VARIABLE_LEARNING_RATE_GAIN: 15
+OTHERS:
+  SAVE: "./saved/models/yumi_3"
+  LOG: "./saved/log/yumi_3"
+  SUMMARY: "./saved/runs/yumi_3"
