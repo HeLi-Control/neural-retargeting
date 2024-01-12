@@ -1,8 +1,16 @@
 import torch
-from torch_geometric.data import Data
+from torch_geometric.data import Data as OldData
 from urdfpy import URDF, matrix_to_xyz_rpy
 from configs.yumi_urdf_config import hand_cfg, yumi_cfg
 import math
+
+
+class Data(OldData):
+    def __inc__(self, key, value, *args, **kwargs):
+        if key == "hand_edge_index":
+            return self.hand_num_nodes
+        else:
+            return 0
 
 
 def load_joints_from_urdf(urdf_file: str) -> tuple:

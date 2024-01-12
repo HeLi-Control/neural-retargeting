@@ -9,6 +9,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 from utils.urdf2graph import yumi2graph, hand2graph
 import h5py
+import shutil
 
 
 class Data(OldData):
@@ -875,6 +876,14 @@ class YumiAll(InMemoryDataset):
 
 
 if __name__ == "__main__":
+    # delete all the processed files
+    print('Scanning processed files...')
+    paths = os.walk(r"./data/")
+    for path, dir_lst, file_lst in paths:
+        if path.endswith("processed"):
+            shutil.rmtree(path)
+    print('File deleted.')
+    # process dataset
     yumi_dataset = YumiDataset(root="./data/target/yumi")
     sign_dataset = SignDataset(
         root="./data/source/sign/train", pre_transform=transforms.Compose([Normalize()])
