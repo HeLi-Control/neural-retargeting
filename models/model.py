@@ -14,8 +14,16 @@ sys.path.insert(0, current_dir)
 
 
 class SpatialBasicBlock(MessagePassing):
-    def __init__(self, in_channels, out_channels, edge_channels, aggr='add',
-                 batch_norm=False, bias=True, **kwargs):
+    def __init__(
+            self,
+            in_channels,
+            out_channels,
+            edge_channels,
+            aggr="add",
+            batch_norm=False,
+            bias=True,
+            **kwargs
+    ):
         super(SpatialBasicBlock, self).__init__(aggr=aggr, **kwargs)
         self.batch_norm = batch_norm
         # network architecture
@@ -44,10 +52,24 @@ class SpatialBasicBlock(MessagePassing):
 class Encoder(torch.nn.Module):
     def __init__(self, channels, dim):
         super(Encoder, self).__init__()
-        self.conv1 = SpatialBasicBlock(in_channels=channels, out_channels=16, edge_channels=dim)
-        self.conv2 = SpatialBasicBlock(in_channels=16, out_channels=32, edge_channels=dim)
-        self.conv3 = SpatialBasicBlock(in_channels=32, out_channels=64, edge_channels=dim)
-        self.conv4 = SpatialBasicBlock(in_channels=64, out_channels=64, edge_channels=dim)
+        self.conv1 = SpatialBasicBlock(
+            in_channels=channels, out_channels=16, edge_channels=dim
+        )
+        self.conv2 = SpatialBasicBlock(
+            in_channels=16, out_channels=32, edge_channels=dim
+        )
+        self.conv3 = SpatialBasicBlock(
+            in_channels=32, out_channels=64, edge_channels=dim
+        )
+        self.conv4 = SpatialBasicBlock(
+            in_channels=64, out_channels=64, edge_channels=dim
+        )
+
+    def reset_parameters(self):
+        self.conv1.reset_parameters()
+        self.conv2.reset_parameters()
+        self.conv3.reset_parameters()
+        self.conv4.reset_parameters()
 
     def forward(self, x, edge_index, edge_attr):
         """
@@ -66,10 +88,24 @@ class Encoder(torch.nn.Module):
 class Decoder(torch.nn.Module):
     def __init__(self, channels, dim):
         super(Decoder, self).__init__()
-        self.conv1 = SpatialBasicBlock(in_channels=64+2, out_channels=64, edge_channels=dim)
-        self.conv2 = SpatialBasicBlock(in_channels=64, out_channels=32, edge_channels=dim)
-        self.conv3 = SpatialBasicBlock(in_channels=32, out_channels=16, edge_channels=dim)
-        self.conv4 = SpatialBasicBlock(in_channels=16, out_channels=channels, edge_channels=dim)
+        self.conv1 = SpatialBasicBlock(
+            in_channels=64 + 2, out_channels=64, edge_channels=dim
+        )
+        self.conv2 = SpatialBasicBlock(
+            in_channels=64, out_channels=32, edge_channels=dim
+        )
+        self.conv3 = SpatialBasicBlock(
+            in_channels=32, out_channels=16, edge_channels=dim
+        )
+        self.conv4 = SpatialBasicBlock(
+            in_channels=16, out_channels=channels, edge_channels=dim
+        )
+
+    def reset_parameters(self):
+        self.conv1.reset_parameters()
+        self.conv2.reset_parameters()
+        self.conv3.reset_parameters()
+        self.conv4.reset_parameters()
 
     def forward(self, x, edge_index, edge_attr, lower, upper):
         """
@@ -86,6 +122,26 @@ class Decoder(torch.nn.Module):
         return out
 
 
+class Return_Target_Data:
+    def __init__(
+            self, target_ang=None, target_pos=None, target_rot=None, target_global_pos=None
+    ):
+        self.target_ang = target_ang
+        self.target_pos = target_pos
+        self.target_rot = target_rot
+        self.target_global_pos = target_global_pos
+
+
+class Return_Hand_Data:
+    def __init__(
+            self, l_hand_ang=None, l_hand_pos=None, r_hand_ang=None, r_hand_pos=None
+    ):
+        self.l_hand_ang = l_hand_ang
+        self.l_hand_pos = l_hand_pos
+        self.r_hand_ang = r_hand_ang
+        self.r_hand_pos = r_hand_pos
+
+
 class ArmNet(torch.nn.Module):
     def __init__(self):
         super(ArmNet, self).__init__()
@@ -94,20 +150,32 @@ class ArmNet(torch.nn.Module):
         self.decoder = Decoder(1, 6)
         self.fk = ForwardKinematicsURDF()
 
+    def reset_parameters(self):
+        self.encoder.reset_parameters()
+        self.transform = nn.Sequential(nn.Linear(6 * 64, 14 * 64), nn.Tanh())
+        self.decoder.reset_parameters()
+
     def forward(self, data, target):
         return self.decode(self.encode(data), target)
 
     def encode(self, data):
         z = self.encoder(data.x, data.edge_index, data.edge_attr)
-        z = self.transform(z.view(data.num_graphs, -1, 64).view(data.num_graphs, -1))\
-            .view(data.num_graphs, -1, 64).view(-1, 64)
+        z = (
+            self.transform(z.view(data.num_graphs, -1, 64).view(data.num_graphs, -1))
+            .view(data.num_graphs, -1, 64)
+            .view(-1, 64)
+        )
         return z
 
     def decode(self, z, target):
-        ang = self.decoder(z, target.edge_index, target.edge_attr, target.lower, target.upper)
+        ang = self.decoder(
+            z, target.edge_index, target.edge_attr, target.lower, target.upper
+        )
         ang = target.lower + (target.upper - target.lower) * (ang + 1) / 2
-        pos, rot, global_pos = self.fk(ang, target.parent, target.offset, target.num_graphs)
-        return z, ang, pos, rot, global_pos, None, None, None, None
+        pos, rot, global_pos = self.fk(
+            ang, target.parent, target.offset, target.num_graphs
+        )
+        return Return_Target_Data(ang, pos, rot, global_pos)
 
 
 class HandNet(torch.nn.Module):
@@ -118,22 +186,35 @@ class HandNet(torch.nn.Module):
         self.decoder = Decoder(1, 6)
         self.fk = ForwardKinematicsAxis()
 
+    def reset_parameters(self):
+        self.encoder.reset_parameters()
+        self.transform = nn.Sequential(nn.Linear(17 * 64, 13 * 64), nn.Tanh())
+        self.decoder.reset_parameters()
+
     def forward(self, data, target):
         return self.decode(self.encode(data), target)
 
     def encode(self, data):
         x = torch.cat([data.l_hand_x, data.r_hand_x], dim=0)
-        edge_index = torch.cat([data.l_hand_edge_index,
-                                data.r_hand_edge_index + data.l_hand_x.size(0)], dim=1)
+        edge_index = torch.cat(
+            [data.l_hand_edge_index, data.r_hand_edge_index + data.l_hand_x.size(0)],
+            dim=1,
+        )
         edge_attr = torch.cat([data.l_hand_edge_attr, data.r_hand_edge_attr], dim=0)
         z = self.encoder(x, edge_index, edge_attr)
-        z = (self.transform(z.view(2 * data.num_graphs, -1, 64).view(2 * data.num_graphs, -1))
-             .view(2 * data.num_graphs, -1, 64).view(-1, 64))
+        z = (
+            self.transform(
+                z.view(2 * data.num_graphs, -1, 64).view(2 * data.num_graphs, -1)
+            )
+            .view(2 * data.num_graphs, -1, 64)
+            .view(-1, 64)
+        )
         return z
 
     def decode(self, z: torch.Tensor, target):
-        edge_index = torch.cat([target.hand_edge_index,
-                                target.hand_edge_index + z.size(0) // 2], dim=1)
+        edge_index = torch.cat(
+            [target.hand_edge_index, target.hand_edge_index + z.size(0) // 2], dim=1
+        )
         edge_attr = torch.cat([target.hand_edge_attr, target.hand_edge_attr], dim=0)
         lower = torch.cat([target.hand_lower, target.hand_lower], dim=0)
         upper = torch.cat([target.hand_upper, target.hand_upper], dim=0)
@@ -149,23 +230,7 @@ class HandNet(torch.nn.Module):
         half = hand_ang.size(0) // 2
         l_hand_ang, r_hand_ang = hand_ang[:half, :], hand_ang[half:, :]
         l_hand_pos, r_hand_pos = hand_pos[:half, :], hand_pos[half:, :]
-        # half = z.shape[0] // 2
-        # l_hand_z, r_hand_z = z[:half, :], z[half:, :]
-
-        # l_hand_ang = self.decoder(l_hand_z, target.hand_edge_index, target.hand_edge_attr,
-        #                           target.hand_lower, target.hand_upper)
-        # l_hand_ang = (target.hand_lower + (target.hand_upper - target.hand_lower) *
-        #               (l_hand_ang + 1) / 2)
-        # l_hand_pos, _, _ = self.fk(l_hand_ang, target.hand_parent, target.hand_offset,
-        #                            target.num_graphs, target.hand_axis)
-
-        # r_hand_ang = self.decoder(r_hand_z, target.hand_edge_index, target.hand_edge_attr,
-        #                           target.hand_lower, target.hand_upper)
-        # r_hand_ang = (target.hand_lower + (target.hand_upper - target.hand_lower) *
-        #               (r_hand_ang + 1) / 2)
-        # r_hand_pos, _, _ = self.fk(r_hand_ang, target.hand_parent, target.hand_offset,
-        #                            target.num_graphs, target.hand_axis)
-        return z, None, None, None, None, l_hand_ang, l_hand_pos, r_hand_ang, r_hand_pos
+        return Return_Hand_Data(l_hand_ang, l_hand_pos, r_hand_ang, r_hand_pos)
 
 
 class YumiNet(torch.nn.Module):
@@ -173,6 +238,10 @@ class YumiNet(torch.nn.Module):
         super(YumiNet, self).__init__()
         self.arm_net = ArmNet()
         self.hand_net = HandNet()
+
+    def reset_parameters(self):
+        self.arm_net.reset_parameters()
+        self.hand_net.reset_parameters()
 
     def forward(self, data, target):
         return self.decode(self.encode(data), target)
@@ -186,7 +255,6 @@ class YumiNet(torch.nn.Module):
     def decode(self, z: torch.Tensor, target):
         half = target.num_nodes
         arm_z, hand_z = z[:half, :], z[half:, :]
-        _, ang, pos, rot, global_pos, _, _, _, _ = self.arm_net.decode(arm_z, target)
-        _, _, _, _, _, l_hand_ang, l_hand_pos, r_hand_ang, r_hand_pos = (
-            self.hand_net.decode(hand_z, target))
-        return z, ang, pos, rot, global_pos, l_hand_ang, l_hand_pos, r_hand_ang, r_hand_pos
+        target_data = self.arm_net.decode(arm_z, target)
+        hand_data = self.hand_net.decode(hand_z, target)
+        return z, target_data, hand_data

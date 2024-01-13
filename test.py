@@ -1,18 +1,12 @@
 import torch
 from torch_geometric.data import Batch
-from models.loss import calculate_all_loss
+from models.loss import calculate_all_loss, Loss
 import time
 
 
 def test_epoch(
     model,
-    ee_criterion,
-    vec_criterion,
-    col_criterion,
-    lim_criterion,
-    ori_criterion,
-    fin_criterion,
-    reg_criterion,
+    loss_criterion,
     dataloader,
     target_skeleton,
     epoch,
@@ -25,8 +19,7 @@ def test_epoch(
     start_time = time.time()
 
     model.eval()
-    all_losses = ee_losses = vec_losses = col_losses = None
-    lim_losses = ori_losses = fin_losses = reg_losses = None
+    losses = Loss()
     with torch.no_grad():
         for batch_idx, data_list in enumerate(dataloader):
             for target_idx, target in enumerate(target_skeleton):
@@ -48,26 +41,10 @@ def test_epoch(
                     Batch.from_data_list(target_list).to(device),
                 )
                 # calculate all loss
-                (
-                    _,
-                    all_losses,
-                    ee_losses,
-                    vec_losses,
-                    col_losses,
-                    lim_losses,
-                    ori_losses,
-                    fin_losses,
-                    reg_losses,
-                ) = calculate_all_loss(
+                (_, losses) = calculate_all_loss(
                     data_list,
                     target_list,
-                    ee_criterion,
-                    vec_criterion,
-                    col_criterion,
-                    lim_criterion,
-                    ori_criterion,
-                    fin_criterion,
-                    reg_criterion,
+                    loss_criterion,
                     z,
                     target_ang,
                     target_pos,
@@ -75,25 +52,18 @@ def test_epoch(
                     target_global_pos,
                     l_hand_pos,
                     r_hand_pos,
+                    losses,
                     loss_gain,
-                    all_losses,
-                    ee_losses,
-                    vec_losses,
-                    col_losses,
-                    lim_losses,
-                    ori_losses,
-                    fin_losses,
-                    reg_losses,
                 )
     # Compute average loss
-    test_loss = sum(all_losses) / len(all_losses)
-    ee_loss = sum(ee_losses) / len(ee_losses)
-    vec_loss = sum(vec_losses) / len(vec_losses)
-    col_loss = sum(col_losses) / len(col_losses)
-    lim_loss = sum(lim_losses) / len(lim_losses)
-    ori_loss = sum(ori_losses) / len(ori_losses)
-    fin_loss = sum(fin_losses) / len(fin_losses)
-    reg_loss = sum(reg_losses) / len(reg_losses)
+    test_loss = sum(losses.sum) / len(losses.sum)
+    ee_loss = sum(losses.ee) / len(losses.ee)
+    vec_loss = sum(losses.vec) / len(losses.vec)
+    col_loss = sum(losses.col) / len(losses.col)
+    lim_loss = sum(losses.lim) / len(losses.lim)
+    ori_loss = sum(losses.ori) / len(losses.ori)
+    fin_loss = sum(losses.fin) / len(losses.fin)
+    reg_loss = sum(losses.reg) / len(losses.reg)
     # Log
     writer.add_scalars("testing_loss", {"test": test_loss}, epoch + 1)
     writer.add_scalars("end_effector_loss", {"test": ee_loss}, epoch + 1)
@@ -105,9 +75,9 @@ def test_epoch(
     writer.add_scalars("regularization_loss", {"test": reg_loss}, epoch + 1)
     end_time = time.time()
     logger.info(
-        "Epoch {:03d} | Testing Time {:.2f} s | Avg Testing {:.3f} | Avg EE {:.3f} | "
-        "Avg Vec {:.3f} | Avg Col {:.3f} | Avg Lim {:.3f} | Avg Ori {:.3f} | "
-        "Avg Fin {:.3f} | Avg Reg {:.3f}".format(
+        "Epoch {:03d} | Testing Time {:.2f} s | Avg Testing {:.2f} | Avg EE {:.2f} | "
+        "Avg Vec {:.2f} | Avg Col {:.2f} | Avg Lim {:.2f} | Avg Ori {:.2f} | "
+        "Avg Fin {:.2f} | Avg Reg {:.2f}".format(
             epoch + 1,
             end_time - start_time,
             test_loss,

@@ -1,18 +1,12 @@
 import torch
 from torch_geometric.data import Batch
-from models.loss import calculate_all_loss
+from models.loss import calculate_all_loss, Loss
 import time
 
 
 def train_epoch(
     model,
-    ee_criterion,
-    vec_criterion,
-    col_criterion,
-    lim_criterion,
-    ori_criterion,
-    fin_criterion,
-    reg_criterion,
+    loss_criterion,
     optimizer,
     dataloader,
     target_skeleton,
@@ -28,8 +22,7 @@ def train_epoch(
     start_time = time.time()
 
     model.train()
-    all_losses = ee_losses = vec_losses = col_losses = None
-    lim_losses = ori_losses = fin_losses = reg_losses = None
+    losses = Loss()
     for batch_idx, data_list in enumerate(dataloader):
         for target_idx, target in enumerate(target_skeleton):
             # zero gradient
@@ -39,69 +32,24 @@ def train_epoch(
             # forward
             if z_all is not None:
                 z = z_all[batch_idx]
-                (
-                    _,
-                    target_ang,
-                    target_pos,
-                    target_rot,
-                    target_global_pos,
-                    l_hand_ang,
-                    l_hand_pos,
-                    r_hand_ang,
-                    r_hand_pos,
-                ) = model.decode(z, Batch.from_data_list(target_list).to(device))
+                _, target_data, hand_data = model.decode(
+                    z, Batch.from_data_list(target_list).to(device)
+                )
             else:
-                (
-                    z,
-                    target_ang,
-                    target_pos,
-                    target_rot,
-                    target_global_pos,
-                    l_hand_ang,
-                    l_hand_pos,
-                    r_hand_ang,
-                    r_hand_pos,
-                ) = model(
+                z, target_data, hand_data = model(
                     Batch.from_data_list(data_list).to(device),
                     Batch.from_data_list(target_list).to(device),
                 )
             # calculate all loss
-            (
-                loss,
-                all_losses,
-                ee_losses,
-                vec_losses,
-                col_losses,
-                lim_losses,
-                ori_losses,
-                fin_losses,
-                reg_losses,
-            ) = calculate_all_loss(
+            (loss, losses) = calculate_all_loss(
                 data_list,
                 target_list,
-                ee_criterion,
-                vec_criterion,
-                col_criterion,
-                lim_criterion,
-                ori_criterion,
-                fin_criterion,
-                reg_criterion,
+                loss_criterion,
                 z,
-                target_ang,
-                target_pos,
-                target_rot,
-                target_global_pos,
-                l_hand_pos,
-                r_hand_pos,
+                target_data,
+                hand_data,
+                losses,
                 loss_gain,
-                all_losses,
-                ee_losses,
-                vec_losses,
-                col_losses,
-                lim_losses,
-                ori_losses,
-                fin_losses,
-                reg_losses,
             )
             # backward
             loss.backward()
@@ -112,29 +60,29 @@ def train_epoch(
         # log
         if (batch_idx + 1) % log_interval == 0:
             logger.info(
-                "epoch {:03d} | iteration {:03d} | Sum {:.3f} | EE {:.3f} | Vec {:.3f}"
-                " | Col {:.3f} | Lim {:.3f} | Ori {:.3f} | Fin {:.3f} | Reg {:.3f}".format(
+                "epoch {:03d} | iteration {:03d} | Sum {:.2f} | EE {:.2f} | Vec {:.2f}"
+                " | Col {:.2f} | Lim {:.2f} | Ori {:.2f} | Fin {:.2f} | Reg {:.2f}".format(
                     epoch + 1,
                     batch_idx + 1,
-                    all_losses[-1],
-                    ee_losses[-1],
-                    vec_losses[-1],
-                    col_losses[-1],
-                    lim_losses[-1],
-                    ori_losses[-1],
-                    fin_losses[-1],
-                    reg_losses[-1],
+                    losses.sum[-1],
+                    losses.ee[-1],
+                    losses.vec[-1],
+                    losses.col[-1],
+                    losses.lim[-1],
+                    losses.ori[-1],
+                    losses.fin[-1],
+                    losses.reg[-1],
                 )
             )
     # Compute average loss
-    train_loss = sum(all_losses) / len(all_losses)
-    ee_loss = sum(ee_losses) / len(ee_losses)
-    vec_loss = sum(vec_losses) / len(vec_losses)
-    col_loss = sum(col_losses) / len(col_losses)
-    lim_loss = sum(lim_losses) / len(lim_losses)
-    ori_loss = sum(ori_losses) / len(ori_losses)
-    fin_loss = sum(fin_losses) / len(fin_losses)
-    reg_loss = sum(reg_losses) / len(reg_losses)
+    train_loss = sum(losses.sum) / len(losses.sum)
+    ee_loss = sum(losses.ee) / len(losses.ee)
+    vec_loss = sum(losses.vec) / len(losses.vec)
+    col_loss = sum(losses.col) / len(losses.col)
+    lim_loss = sum(losses.lim) / len(losses.lim)
+    ori_loss = sum(losses.ori) / len(losses.ori)
+    fin_loss = sum(losses.fin) / len(losses.fin)
+    reg_loss = sum(losses.reg) / len(losses.reg)
     # Log
     writer.add_scalars("training_loss", {"train": train_loss}, epoch + 1)
     writer.add_scalars("end_effector_loss", {"train": ee_loss}, epoch + 1)
@@ -146,9 +94,9 @@ def train_epoch(
     writer.add_scalars("regularization_loss", {"train": reg_loss}, epoch + 1)
     end_time = time.time()
     logger.info(
-        "Epoch {:03d} | Training Time {:.2f} s | Avg Training {:.3f} | "
-        "Avg EE {:.3f} | Avg Vec {:.3f} | Avg Col {:.3f} | Avg Lim {:.3f} | "
-        "Avg Ori {:.3f} | Avg Fin {:.3f} | Avg Reg {:.3f}".format(
+        "Epoch {:03d} | Training Time {:.2f} s | Avg Training {:.2f} | "
+        "Avg EE {:.2f} | Avg Vec {:.2f} | Avg Col {:.2f} | Avg Lim {:.2f} | "
+        "Avg Ori {:.2f} | Avg Fin {:.2f} | Avg Reg {:.2f}".format(
             epoch + 1,
             end_time - start_time,
             train_loss,
