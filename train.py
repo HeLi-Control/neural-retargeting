@@ -1,65 +1,86 @@
 import torch
 from torch_geometric.data import Batch
 from models.loss import calculate_all_loss, Loss
+import logging
+from models.model import YumiNet
+from tensorboardX import SummaryWriter
 import time
 
 
-def train_epoch(
-    model,
-    loss_criterion,
-    optimizer,
-    dataloader,
-    target_skeleton,
-    epoch,
-    logger,
-    log_interval,
-    writer,
-    device,
-    loss_gain=None,
-    z_all=None,
-):
-    logger.info("Training Epoch {}".format(epoch + 1).center(100, "-"))
+class Model_Params:
+    def __init__(
+        self,
+        model: YumiNet,
+        loss_criterion: Loss,
+        optimizer: torch.optim.Adam,
+        loader,
+        target,
+        epoch: int,
+        logger: logging.Logger,
+        interval: int,
+        writer,
+        loss_gain: torch.Tensor,
+        device: torch.device,
+        z_all=None,
+    ):
+        self.model = model
+        self.loss_criterion = loss_criterion
+        self.optimizer = optimizer
+        self.loader = loader
+        self.target = target
+        self.epoch = epoch
+        self.logger = logger
+        self.interval = interval
+        self.writer = writer
+        self.device = device
+        self.loss_gain = loss_gain
+        self.z_all = z_all
+
+
+def train_epoch(model_params: Model_Params):
+    epoch = model_params.epoch
+    model_params.logger.info("Training Epoch {}".format(epoch + 1).center(100, "-"))
     start_time = time.time()
 
-    model.train()
+    model_params.model.train()
     losses = Loss()
-    for batch_idx, data_list in enumerate(dataloader):
-        for target_idx, target in enumerate(target_skeleton):
+    for batch_idx, data_list in enumerate(model_params.loader):
+        for _, target in enumerate(model_params.target):
             # zero gradient
-            optimizer.zero_grad()
+            model_params.optimizer.zero_grad()
             # fetch target
-            target_list = [target for data in data_list]
+            target_list = [target for _ in data_list]
             # forward
-            if z_all is not None:
-                z = z_all[batch_idx]
-                _, target_data, hand_data = model.decode(
-                    z, Batch.from_data_list(target_list).to(device)
+            if model_params.z_all is not None:
+                z = model_params.z_all[batch_idx]
+                _, target_data, hand_data = model_params.model.decode(
+                    z, Batch.from_data_list(target_list).to(model_params.device)
                 )
             else:
-                z, target_data, hand_data = model(
-                    Batch.from_data_list(data_list).to(device),
-                    Batch.from_data_list(target_list).to(device),
+                z, target_data, hand_data = model_params.model(
+                    Batch.from_data_list(data_list).to(model_params.device),
+                    Batch.from_data_list(target_list).to(model_params.device),
                 )
             # calculate all loss
-            (loss, losses) = calculate_all_loss(
+            loss, losses = calculate_all_loss(
                 data_list,
                 target_list,
-                loss_criterion,
+                model_params.loss_criterion,
                 z,
                 target_data,
                 hand_data,
                 losses,
-                loss_gain,
+                model_params.loss_gain,
             )
             # backward
             loss.backward()
             # gradient clipping
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
+            torch.nn.utils.clip_grad_norm_(model_params.model.parameters(), 10)
             # optimize
-            optimizer.step()
+            model_params.optimizer.step()
         # log
-        if (batch_idx + 1) % log_interval == 0:
-            logger.info(
+        if (batch_idx + 1) % model_params.interval == 0:
+            model_params.logger.info(
                 "epoch {:03d} | iteration {:03d} | Sum {:.2f} | EE {:.2f} | Vec {:.2f}"
                 " | Col {:.2f} | Lim {:.2f} | Ori {:.2f} | Fin {:.2f} | Reg {:.2f}".format(
                     epoch + 1,
@@ -84,19 +105,20 @@ def train_epoch(
     fin_loss = sum(losses.fin) / len(losses.fin)
     reg_loss = sum(losses.reg) / len(losses.reg)
     # Log
-    writer.add_scalars("training_loss", {"train": train_loss}, epoch + 1)
-    writer.add_scalars("end_effector_loss", {"train": ee_loss}, epoch + 1)
-    writer.add_scalars("vector_loss", {"train": vec_loss}, epoch + 1)
-    writer.add_scalars("collision_loss", {"train": col_loss}, epoch + 1)
-    writer.add_scalars("joint_limit_loss", {"train": lim_loss}, epoch + 1)
-    writer.add_scalars("orientation_loss", {"train": ori_loss}, epoch + 1)
-    writer.add_scalars("finger_loss", {"train": fin_loss}, epoch + 1)
-    writer.add_scalars("regularization_loss", {"train": reg_loss}, epoch + 1)
+    model_params.writer.add_scalars("training_loss", {"train": train_loss}, epoch + 1)
+    model_params.writer.add_scalars("end_effector_loss", {"train": ee_loss}, epoch + 1)
+    model_params.writer.add_scalars("vector_loss", {"train": vec_loss}, epoch + 1)
+    model_params.writer.add_scalars("collision_loss", {"train": col_loss}, epoch + 1)
+    model_params.writer.add_scalars("joint_limit_loss", {"train": lim_loss}, epoch + 1)
+    model_params.writer.add_scalars("orientation_loss", {"train": ori_loss}, epoch + 1)
+    model_params.writer.add_scalars("finger_loss", {"train": fin_loss}, epoch + 1)
+    model_params.writer.add_scalars(
+        "regularization_loss", {"train": reg_loss}, epoch + 1
+    )
     end_time = time.time()
-    logger.info(
-        "Epoch {:03d} | Training Time {:.2f} s | Avg Training {:.2f} | "
-        "Avg EE {:.2f} | Avg Vec {:.2f} | Avg Col {:.2f} | Avg Lim {:.2f} | "
-        "Avg Ori {:.2f} | Avg Fin {:.2f} | Avg Reg {:.2f}".format(
+    model_params.logger.info(
+        "Epoch {:03d} | Training Time {:.2f} s | Avg Training {:.2f} | EE {:.2f} | Vec {:.2f} "
+        "| Col {:.2f} | Lim {:.2f} | Ori {:.2f} | Fin {:.2f} | Reg {:.2f}".format(
             epoch + 1,
             end_time - start_time,
             train_loss,

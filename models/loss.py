@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from kornia.geometry.conversions import quaternion_to_rotation_matrix
-from models.model import Return_Hand_Data, Return_Target_Data
+from models.model import Return_Hand_Data, Return_Arm_Data
 
 
 class Loss:
@@ -31,7 +31,7 @@ def calculate_all_loss(
     target_list,
     loss_criterion: Loss,
     z,
-    target_data: Return_Target_Data,
+    target_data: Return_Arm_Data,
     hand_data: Return_Hand_Data,
     losses: Loss,
     loss_gain=None,

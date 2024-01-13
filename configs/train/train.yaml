@@ -25,4 +25,4 @@ LOSS:
 #               ee,    vec,   col,  lim,   ori,   fin,   reg
   LOSS_GAIN: [[2000], [500], [100], [0], [2000], [800], [50]]
 OTHERS:
-  LOG_INTERVAL: 39
+  LOG_INTERVAL: 49

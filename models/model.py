@@ -15,14 +15,14 @@ sys.path.insert(0, current_dir)
 
 class SpatialBasicBlock(MessagePassing):
     def __init__(
-            self,
-            in_channels,
-            out_channels,
-            edge_channels,
-            aggr="add",
-            batch_norm=False,
-            bias=True,
-            **kwargs
+        self,
+        in_channels,
+        out_channels,
+        edge_channels,
+        aggr="add",
+        batch_norm=False,
+        bias=True,
+        **kwargs
     ):
         super(SpatialBasicBlock, self).__init__(aggr=aggr, **kwargs)
         self.batch_norm = batch_norm
@@ -122,19 +122,17 @@ class Decoder(torch.nn.Module):
         return out
 
 
-class Return_Target_Data:
-    def __init__(
-            self, target_ang=None, target_pos=None, target_rot=None, target_global_pos=None
-    ):
-        self.target_ang = target_ang
-        self.target_pos = target_pos
-        self.target_rot = target_rot
-        self.target_global_pos = target_global_pos
+class Return_Arm_Data:
+    def __init__(self, arm_ang=None, arm_pos=None, arm_rot=None, arm_global_pos=None):
+        self.target_ang = arm_ang
+        self.target_pos = arm_pos
+        self.target_rot = arm_rot
+        self.target_global_pos = arm_global_pos
 
 
 class Return_Hand_Data:
     def __init__(
-            self, l_hand_ang=None, l_hand_pos=None, r_hand_ang=None, r_hand_pos=None
+        self, l_hand_ang=None, l_hand_pos=None, r_hand_ang=None, r_hand_pos=None
     ):
         self.l_hand_ang = l_hand_ang
         self.l_hand_pos = l_hand_pos
@@ -160,22 +158,23 @@ class ArmNet(torch.nn.Module):
 
     def encode(self, data):
         z = self.encoder(data.x, data.edge_index, data.edge_attr)
+        num_graphs = data.num_graphs
         z = (
-            self.transform(z.view(data.num_graphs, -1, 64).view(data.num_graphs, -1))
-            .view(data.num_graphs, -1, 64)
+            self.transform(z.view(num_graphs, -1, 64).view(num_graphs, -1))
+            .view(num_graphs, -1, 64)
             .view(-1, 64)
         )
         return z
 
     def decode(self, z, target):
-        ang = self.decoder(
-            z, target.edge_index, target.edge_attr, target.lower, target.upper
-        )
-        ang = target.lower + (target.upper - target.lower) * (ang + 1) / 2
+        lower, upper = target.lower, target.upper
+        # Decoder outputs joints' angles
+        ang = self.decoder(z, target.edge_index, target.edge_attr, lower, upper)
+        ang = lower + (upper - lower) * (ang + 1) / 2
         pos, rot, global_pos = self.fk(
             ang, target.parent, target.offset, target.num_graphs
         )
-        return Return_Target_Data(ang, pos, rot, global_pos)
+        return Return_Arm_Data(ang, pos, rot, global_pos)
 
 
 class HandNet(torch.nn.Module):
@@ -202,18 +201,18 @@ class HandNet(torch.nn.Module):
         )
         edge_attr = torch.cat([data.l_hand_edge_attr, data.r_hand_edge_attr], dim=0)
         z = self.encoder(x, edge_index, edge_attr)
+        num_graphs = data.num_graphs
         z = (
-            self.transform(
-                z.view(2 * data.num_graphs, -1, 64).view(2 * data.num_graphs, -1)
-            )
-            .view(2 * data.num_graphs, -1, 64)
+            self.transform(z.view(2 * num_graphs, -1, 64).view(2 * num_graphs, -1))
+            .view(2 * num_graphs, -1, 64)
             .view(-1, 64)
         )
         return z
 
     def decode(self, z: torch.Tensor, target):
+        hand_edge_index = target.hand_edge_index
         edge_index = torch.cat(
-            [target.hand_edge_index, target.hand_edge_index + z.size(0) // 2], dim=1
+            [hand_edge_index, hand_edge_index + z.size(0) // 2], dim=1
         )
         edge_attr = torch.cat([target.hand_edge_attr, target.hand_edge_attr], dim=0)
         lower = torch.cat([target.hand_lower, target.hand_lower], dim=0)
@@ -255,6 +254,6 @@ class YumiNet(torch.nn.Module):
     def decode(self, z: torch.Tensor, target):
         half = target.num_nodes
         arm_z, hand_z = z[:half, :], z[half:, :]
-        target_data = self.arm_net.decode(arm_z, target)
+        arm_data = self.arm_net.decode(arm_z, target)
         hand_data = self.hand_net.decode(hand_z, target)
-        return z, target_data, hand_data
+        return z, arm_data, hand_data

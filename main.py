@@ -1,5 +1,3 @@
-import math
-
 import torch.nn as nn
 import torch.optim as optim
 from torch_geometric.loader import DataListLoader
@@ -9,7 +7,7 @@ from models import model
 from models.loss import CollisionLoss, JointLimitLoss, RegLoss, Loss
 import dataset
 from dataset import *
-from train import train_epoch
+from train import train_epoch, Model_Params
 from test import test_epoch
 from utils.config import cfg
 from utils.util import create_folder
@@ -28,6 +26,19 @@ def get_varying_learning_rate(
         * (1 + varying_gain)
         / (1 + varying_gain * epoch_now / epoch_sum)
     )
+
+
+def save_model(
+    model: model, save_path: str, epoch: int, best_loss: float, logger: logging.Logger
+):
+    torch.save(
+        model.state_dict(),
+        os.path.join(
+            save_path,
+            "best_model_epoch_{:04d}_loss_{:.2f}.pth".format(epoch, best_loss),
+        ),
+    )
+    logger.info("Epoch {} Model Saved".format(epoch + 1).center(100, "-"))
 
 
 # Device setting
@@ -67,25 +78,11 @@ if __name__ == "__main__":
         cfg.merge_from_file(train_yaml)
         cfg.merge_from_file(args.cfg)
         cfg.freeze()
-        # Create model
-        model = getattr(model, cfg.MODEL.NAME)().to(device)
-        # Create optimizer
-        optimizer = optim.Adam(model.parameters(), lr=cfg.HYPER.LEARNING_RATE)
+
         # Load checkpoint
         if cfg.MODEL.CHECKPOINT is not None:
             model.load_state_dict(torch.load(cfg.MODEL.CHECKPOINT))
             print("loaded checkpoint")
-
-        # Create loss criterion
-        loss_criterion = Loss(
-            ee=nn.MSELoss() if cfg.LOSS.EE else None,
-            vec=nn.MSELoss() if cfg.LOSS.VEC else None,
-            col=CollisionLoss(cfg.LOSS.COL_THRESHOLD) if cfg.LOSS.COL else None,
-            lim=JointLimitLoss() if cfg.LOSS.LIM else None,
-            ori=nn.MSELoss() if cfg.LOSS.ORI else None,
-            fin=nn.MSELoss() if cfg.LOSS.FIN else None,
-            reg=RegLoss() if cfg.LOSS.REG else None
-        )
 
         # Load data
         pre_transform = transforms.Compose([Normalize()])
@@ -128,15 +125,37 @@ if __name__ == "__main__":
             key=lambda target: target.skeleton_type,
         )
 
+        # set model params
+        from models import model
+
+        model = getattr(model, cfg.MODEL.NAME)().to(device)
+        model_params = Model_Params(
+            model=model,
+            optimizer=optim.Adam(model.parameters(), lr=cfg.HYPER.LEARNING_RATE),
+            loss_criterion=Loss(
+                ee=nn.MSELoss() if cfg.LOSS.EE else None,
+                vec=nn.MSELoss() if cfg.LOSS.VEC else None,
+                col=CollisionLoss(cfg.LOSS.COL_THRESHOLD) if cfg.LOSS.COL else None,
+                lim=JointLimitLoss() if cfg.LOSS.LIM else None,
+                ori=nn.MSELoss() if cfg.LOSS.ORI else None,
+                fin=nn.MSELoss() if cfg.LOSS.FIN else None,
+                reg=RegLoss() if cfg.LOSS.REG else None,
+            ),
+            loader=train_loader,
+            target=train_target,
+            epoch=0,
+            logger=logging.getLogger(),
+            interval=cfg.OTHERS.LOG_INTERVAL,
+            writer=None,
+            device=device,
+            loss_gain=torch.tensor(cfg.LOSS.LOSS_GAIN)
+            if cfg.LOSS.LOSS_USING_GAIN
+            else None,
+        )
+
         for times in range(cfg.HYPER.TRAIN_TIMES):
             print("Times:", times + 1)
             print(">" * 80)
-
-            # Refresh the best loss
-            best_loss = best_loss * 1.5 if not math.isinf(best_loss) else best_loss
-
-            # Network reset
-            model.reset_parameters()
 
             # Create folder
             save = cfg.OTHERS.SAVE + "/{}".format(times + 1)
@@ -145,6 +164,9 @@ if __name__ == "__main__":
             create_folder(save)
             create_folder(log)
             create_folder(summary)
+            model_params.writer = SummaryWriter(
+                os.path.join(summary, "{:%Y-%m-%d_%H-%M-%S}".format(datetime.now()))
+            )
             # Create logger & tensorboard writer
             logging.basicConfig(
                 level=logging.INFO,
@@ -159,20 +181,12 @@ if __name__ == "__main__":
                     logging.StreamHandler(),
                 ],
             )
-            logger = logging.getLogger()
-            writer = SummaryWriter(
-                os.path.join(summary, "{:%Y-%m-%d_%H-%M-%S}".format(datetime.now()))
-            )
 
             # train
             for epoch in range(cfg.HYPER.EPOCHS):
-                loss_gain = (
-                    torch.tensor(cfg.LOSS.LOSS_GAIN)
-                    if cfg.LOSS.LOSS_USING_GAIN
-                    else None
-                )
+                model_params.epoch = epoch
                 # Set learning rate
-                optimizer.lr = (
+                model_params.optimizer.lr = (
                     get_varying_learning_rate(
                         cfg.HYPER.LEARNING_RATE,
                         cfg.HYPER.VARIABLE_LEARNING_RATE_GAIN,
@@ -183,43 +197,16 @@ if __name__ == "__main__":
                     else cfg.HYPER.LEARNING_RATE
                 )
                 # Start training
-                train_loss = train_epoch(
-                    model,
-                    loss_criterion,
-                    optimizer,
-                    train_loader,
-                    train_target,
-                    epoch,
-                    logger,
-                    cfg.OTHERS.LOG_INTERVAL,
-                    writer,
-                    device,
-                    loss_gain,
-                )
+                model_params.loader = train_loader
+                model_params.target = train_target
+                train_loss = train_epoch(model_params)
                 # Start testing
-                test_loss = test_epoch(
-                    model,
-                    loss_criterion,
-                    test_loader,
-                    test_target,
-                    epoch,
-                    logger,
-                    writer,
-                    device,
-                    loss_gain,
-                )
+                model_params.loader = test_loader
+                model_params.target = test_target
+                test_loss = test_epoch(model_params)
                 # Save model
                 if test_loss < best_loss:
                     best_loss = test_loss
-                    torch.save(
-                        model.state_dict(),
-                        os.path.join(
-                            save,
-                            "best_model_epoch_{:04d}_loss_{:.2f}.pth".format(
-                                epoch, best_loss
-                            ),
-                        ),
-                    )
-                    logger.info(
-                        "Epoch {} Model Saved".format(epoch + 1).center(100, "-")
-                    )
+                    save_model(model_params.model, save, epoch, best_loss, model_params.logger)
+            del model_params
+            best_loss = float('Inf')
