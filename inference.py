@@ -19,13 +19,14 @@ import os
 parser = argparse.ArgumentParser(description="Inference with trained model")
 parser.add_argument(
     "--cfg",
-    default="configs/inference/yumi.yaml",
+    default="configs/inference/inference.yaml",
     type=str,
     help="Path to configuration file",
 )
 args = parser.parse_args()
 
 # Configurations parse
+cfg.merge_from_file("configs/global.yaml")
 cfg.merge_from_file(args.cfg)
 cfg.freeze()
 
@@ -65,7 +66,7 @@ if __name__ == "__main__":
         checkpoints_path = cfg.MODEL.CHECKPOINT
         paths = os.walk(checkpoints_path)
         inference_model_files = []
-        for path, dir_list, file_list in paths:
+        for path, _, file_list in paths:
             for file in file_list:
                 if file.endswith(".pth"):
                     inference_model_files.append(
@@ -78,7 +79,11 @@ if __name__ == "__main__":
         print("Checkpoint path unspecified.")
         exit(1)
 
-    inferenced_data = [] if cfg.INFERENCE.H5.BOOL else None
+    inferenced_data = (
+        {"l_arm": [], "r_arm": [], "l_hand": [], "r_hand": []}
+        if cfg.INFERENCE.H5.BOOL
+        else None
+    )
     create_folder(cfg.INFERENCE.H5.PATH)
 
     # Inference
@@ -99,10 +104,21 @@ if __name__ == "__main__":
                     Batch.from_data_list(target_list).to(device),
                 )
                 if cfg.INFERENCE.H5.BOOL:
-                    inferenced_data.append(
-                        arm_data.arm_ang.squeeze().tolist()
-                        + hand_data.l_hand_ang.squeeze().tolist()[1:]
-                        + hand_data.r_hand_ang.squeeze().tolist()[1:]
+                    inferenced_data["l_arm"].append(
+                        arm_data.arm_ang.squeeze().tolist()[
+                            : int(arm_data.arm_ang.size(0) / 2)
+                        ]
+                    )
+                    inferenced_data["r_arm"].append(
+                        arm_data.arm_ang.squeeze().tolist()[
+                            int(arm_data.arm_ang.size(0) / 2) :
+                        ]
+                    )
+                    inferenced_data["l_hand"].append(
+                        hand_data.l_hand_ang.squeeze().tolist()[1:]
+                    )
+                    inferenced_data["r_hand"].append(
+                        hand_data.r_hand_ang.squeeze().tolist()[1:]
                     )
 
         if cfg.INFERENCE.H5.BOOL:
@@ -112,7 +128,8 @@ if __name__ == "__main__":
             save_file_name = os.path.basename(model_file)[:-4] + ".h5"
             h5_file = h5py.File(cfg.INFERENCE.H5.PATH + save_file_name, "w")
             if h5_file is not None:
-                hand_set = h5_file.create_dataset(
-                    "joints' angles", data=inferenced_data
-                )
+                h5_file["l_arm"] = inferenced_data["l_arm"]
+                h5_file["r_arm"] = inferenced_data["r_arm"]
+                h5_file["l_hand"] = inferenced_data["l_hand"]
+                h5_file["r_hand"] = inferenced_data["r_hand"]
             h5_file.close()

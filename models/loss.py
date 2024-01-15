@@ -128,16 +128,16 @@ def calculate_all_loss(
     return loss, losses
 
 
-def calculate_ee_loss(data_list, target_list, target_pos, criterion) -> torch.Tensor:
+def calculate_ee_loss(data_list, target_list, arm_pos, criterion) -> torch.Tensor:
     """
     Calculate End Effector Position Loss
     """
-    device = target_pos.device
+    device = arm_pos.device
     # mask for joints unnecessary to calculate
     target_mask = torch.cat([data.ee_mask for data in target_list]).to(device)
     source_mask = torch.cat([data.ee_mask for data in data_list]).to(device)
     # calculate end effector relative position
-    target_ee = torch.masked_select(target_pos, target_mask).view(-1, 3)
+    target_ee = torch.masked_select(arm_pos, target_mask).view(-1, 3)
     source_pos = torch.cat([data.pos for data in data_list]).to(device)
     source_ee = torch.masked_select(source_pos, source_mask).view(-1, 3)
     # normalize

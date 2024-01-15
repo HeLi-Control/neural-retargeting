@@ -26,12 +26,12 @@ The pretrained model can be downloaded [here](https://www.jianguoyun.com/p/DSl6o
 
 **Training**
 ```bash
-CUDA_VISIBLE_DEVICES=0 python main.py --cfg './configs/train/yumi.yaml'
+CUDA_VISIBLE_DEVICES=0 python main.py --cfg './configs/train/inference.yaml'
 ```
 
 **Inference**
 ```bash
-CUDA_VISIBLE_DEVICES=0 python inference.py --cfg './configs/inference/yumi.yaml'
+CUDA_VISIBLE_DEVICES=0 python inference.py --cfg './configs/inference/inference.yaml'
 ```
 
 ## Simulation Experiment

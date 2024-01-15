@@ -29,16 +29,16 @@ def get_varying_learning_rate(
 
 
 def save_model(
-    model: model, save_path: str, epoch: int, best_loss: float, logger: logging.Logger
+    train_model: model, save_path: str, epoch_now: int, best_loss_now: float, logger: logging.Logger
 ):
     torch.save(
-        model.state_dict(),
+        train_model.state_dict(),
         os.path.join(
             save_path,
-            "best_model_epoch_{:04d}_loss_{:.2f}.pth".format(epoch, best_loss),
+            "best_model_epoch_{:03d}_loss_{:.2f}.pth".format(epoch_now, best_loss_now),
         ),
     )
-    logger.info("Epoch {} Model Saved".format(epoch + 1).center(100, "-"))
+    logger.info("Epoch {} Model Saved".format(epoch_now + 1).center(100, "-"))
 
 
 # Device setting
@@ -49,6 +49,7 @@ if __name__ == "__main__":
     yaml_path = "configs/train/"
     print("Scanning processed files...")
     train_yaml = None
+    global_yaml = 'configs/global.yaml'
     params_yaml_files = []
     paths = os.walk(yaml_path)
     for path, dir_list, file_list in paths:
@@ -62,9 +63,6 @@ if __name__ == "__main__":
         print("<" * 80)
         print("Reading from yaml file:", yaml_file)
 
-        # Set the best loss
-        best_loss = float("Inf")
-
         # Argument parse
         parser = argparse.ArgumentParser(description="Command line arguments")
         parser.add_argument(
@@ -75,14 +73,10 @@ if __name__ == "__main__":
         )
         args = parser.parse_args()
         # Configurations parse
+        cfg.merge_from_file(global_yaml)
         cfg.merge_from_file(train_yaml)
         cfg.merge_from_file(args.cfg)
         cfg.freeze()
-
-        # Load checkpoint
-        if cfg.MODEL.CHECKPOINT is not None:
-            model.load_state_dict(torch.load(cfg.MODEL.CHECKPOINT))
-            print("loaded checkpoint")
 
         # Load data
         pre_transform = transforms.Compose([Normalize()])
@@ -181,6 +175,9 @@ if __name__ == "__main__":
                     logging.StreamHandler(),
                 ],
             )
+
+            # Set the best loss
+            best_loss = float("Inf")
 
             # train
             for epoch in range(cfg.HYPER.EPOCHS):

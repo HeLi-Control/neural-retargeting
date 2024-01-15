@@ -265,6 +265,7 @@ def parse_h5(filename, selected_key=None):
                 r_wrist_quat[t],
             )
             data_list.append(data)
+    h5_file.close()
     return data_list, None, None
 
 
@@ -508,6 +509,7 @@ def parse_h5_hand(filename, selected_key=None):
             data.r_hand_offset = r_hand_data.offset
 
             data_list.append(data)
+    h5_file.close()
     return data_list
 
 
@@ -787,6 +789,7 @@ def parse_all(filename, selected_key=None):
             data.parent = arm_data.parent
             data.offset = arm_data.offset
             data_list.append(data)
+    h5_file.close()
     return data_list
 
 
