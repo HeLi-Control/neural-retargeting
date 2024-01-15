@@ -125,37 +125,37 @@ if __name__ == "__main__":
             key=lambda target: target.skeleton_type,
         )
 
-        # set model params
-        from models import model
-
-        model = getattr(model, cfg.MODEL.NAME)().to(device)
-        model_params = Model_Params(
-            model=model,
-            optimizer=optim.Adam(model.parameters(), lr=cfg.HYPER.LEARNING_RATE),
-            loss_criterion=Loss(
-                ee=nn.MSELoss() if cfg.LOSS.EE else None,
-                vec=nn.MSELoss() if cfg.LOSS.VEC else None,
-                col=CollisionLoss(cfg.LOSS.COL_THRESHOLD) if cfg.LOSS.COL else None,
-                lim=JointLimitLoss() if cfg.LOSS.LIM else None,
-                ori=nn.MSELoss() if cfg.LOSS.ORI else None,
-                fin=nn.MSELoss() if cfg.LOSS.FIN else None,
-                reg=RegLoss() if cfg.LOSS.REG else None,
-            ),
-            loader=train_loader,
-            target=train_target,
-            epoch=0,
-            logger=logging.getLogger(),
-            interval=cfg.OTHERS.LOG_INTERVAL,
-            writer=None,
-            device=device,
-            loss_gain=torch.tensor(cfg.LOSS.LOSS_GAIN)
-            if cfg.LOSS.LOSS_USING_GAIN
-            else None,
-        )
-
         for times in range(cfg.HYPER.TRAIN_TIMES):
             print("Times:", times + 1)
             print(">" * 80)
+
+            # set model params
+            from models import model
+
+            model = getattr(model, cfg.MODEL.NAME)().to(device)
+            model_params = Model_Params(
+                model=model,
+                optimizer=optim.Adam(model.parameters(), lr=cfg.HYPER.LEARNING_RATE),
+                loss_criterion=Loss(
+                    ee=nn.MSELoss() if cfg.LOSS.EE else None,
+                    vec=nn.MSELoss() if cfg.LOSS.VEC else None,
+                    col=CollisionLoss(cfg.LOSS.COL_THRESHOLD) if cfg.LOSS.COL else None,
+                    lim=JointLimitLoss() if cfg.LOSS.LIM else None,
+                    ori=nn.MSELoss() if cfg.LOSS.ORI else None,
+                    fin=nn.MSELoss() if cfg.LOSS.FIN else None,
+                    reg=RegLoss() if cfg.LOSS.REG else None,
+                ),
+                loader=train_loader,
+                target=train_target,
+                epoch=0,
+                logger=logging.getLogger(),
+                interval=cfg.OTHERS.LOG_INTERVAL,
+                writer=None,
+                device=device,
+                loss_gain=torch.tensor(cfg.LOSS.LOSS_GAIN)
+                if cfg.LOSS.LOSS_USING_GAIN
+                else None,
+            )
 
             # Create folder
             save = cfg.OTHERS.SAVE + "/{}".format(times + 1)

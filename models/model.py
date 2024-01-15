@@ -124,10 +124,10 @@ class Decoder(torch.nn.Module):
 
 class Return_Arm_Data:
     def __init__(self, arm_ang=None, arm_pos=None, arm_rot=None, arm_global_pos=None):
-        self.target_ang = arm_ang
-        self.target_pos = arm_pos
-        self.target_rot = arm_rot
-        self.target_global_pos = arm_global_pos
+        self.arm_ang = arm_ang
+        self.arm_pos = arm_pos
+        self.arm_rot = arm_rot
+        self.arm_global_pos = arm_global_pos
 
 
 class Return_Hand_Data:
@@ -194,6 +194,7 @@ class HandNet(torch.nn.Module):
         return self.decode(self.encode(data), target)
 
     def encode(self, data):
+        num_graphs = data.num_graphs
         x = torch.cat([data.l_hand_x, data.r_hand_x], dim=0)
         edge_index = torch.cat(
             [data.l_hand_edge_index, data.r_hand_edge_index + data.l_hand_x.size(0)],
@@ -201,7 +202,6 @@ class HandNet(torch.nn.Module):
         )
         edge_attr = torch.cat([data.l_hand_edge_attr, data.r_hand_edge_attr], dim=0)
         z = self.encoder(x, edge_index, edge_attr)
-        num_graphs = data.num_graphs
         z = (
             self.transform(z.view(2 * num_graphs, -1, 64).view(2 * num_graphs, -1))
             .view(2 * num_graphs, -1, 64)

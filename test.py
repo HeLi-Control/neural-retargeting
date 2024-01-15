@@ -51,7 +51,7 @@ def test_epoch(model_params: Model_Params):
                 # fetch target
                 target_list = [target for _ in data_list]
                 # forward
-                z, target_data, hand_data = model_params.model(
+                z, arm_data, hand_data = model_params.model(
                     Batch.from_data_list(data_list).to(model_params.device),
                     Batch.from_data_list(target_list).to(model_params.device),
                 )
@@ -61,7 +61,7 @@ def test_epoch(model_params: Model_Params):
                     target_list,
                     model_params.loss_criterion,
                     z,
-                    target_data,
+                    arm_data,
                     hand_data,
                     losses,
                     model_params.loss_gain,

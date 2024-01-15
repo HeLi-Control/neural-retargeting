@@ -6,7 +6,7 @@ DATASET:
     TARGET_PATH: "./data/target/yumi-all"
 MODEL:
   NAME: "YumiNet"
-  CHECKPOINT: "./saved/models/yumi/checkpoint.pth"
+  CHECKPOINT: "./saved/models/checkpoints"
 HYPER:
   EPOCHS: 1
   BATCH_SIZE: 1
@@ -22,9 +22,9 @@ LOSS:
   FIN: True
   REG: True
   LOSS_USING_GAIN: True
-  #               ee,    vec,   col,  lim,   ori,   fin,   reg
+  #             ee,    vec,   col,  lim,   ori,   fin,   reg
   LOSS_GAIN: [[2000], [500], [100], [0], [2000], [800], [50]]
 INFERENCE:
   H5:
     BOOL: True
-    PATH: "./saved/h5"
+    PATH: "./saved/inferenced"

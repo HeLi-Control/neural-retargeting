@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from kornia.geometry.conversions import quaternion_to_rotation_matrix
-from models.model import Return_Hand_Data, Return_Arm_Data
+from models.model import Return_Arm_Data, Return_Hand_Data
 
 
 class Loss:
@@ -31,7 +31,7 @@ def calculate_all_loss(
     target_list,
     loss_criterion: Loss,
     z,
-    target_data: Return_Arm_Data,
+    arm_data: Return_Arm_Data,
     hand_data: Return_Hand_Data,
     losses: Loss,
     loss_gain=None,
@@ -51,16 +51,16 @@ def calculate_all_loss(
     )
     loss_gain = loss_gain if loss_gain is not None else torch.ones(7).unsqueeze(dim=1)
 
-    target_pos = target_data.target_pos
-    target_global_pos = target_data.target_global_pos
-    target_rot = target_data.target_rot
-    target_ang = target_data.target_ang
+    arm_pos = arm_data.arm_pos
+    arm_global_pos = arm_data.arm_global_pos
+    arm_rot = arm_data.arm_rot
+    arm_ang = arm_data.arm_ang
     l_hand_pos = hand_data.l_hand_pos
     r_hand_pos = hand_data.r_hand_pos
 
     # End effector loss
     ee_loss = (
-        calculate_ee_loss(data_list, target_list, target_pos, loss_criterion.ee)
+        calculate_ee_loss(data_list, target_list, arm_pos, loss_criterion.ee)
         * float(loss_gain[0])
         if loss_criterion.ee
         else torch.tensor([0])
@@ -68,7 +68,7 @@ def calculate_all_loss(
     losses.ee.append(ee_loss.item())
     # Vector loss
     vec_loss = (
-        calculate_vec_loss(data_list, target_list, target_pos, loss_criterion.vec)
+        calculate_vec_loss(data_list, target_list, arm_pos, loss_criterion.vec)
         * float(loss_gain[1])
         if loss_criterion.vec
         else torch.tensor([0])
@@ -77,9 +77,9 @@ def calculate_all_loss(
     # Collision loss
     collision_loss = (
         loss_criterion.col(
-            target_global_pos.view(len(target_list), -1, 3),
+            arm_global_pos.view(len(target_list), -1, 3),
             target_list[0].edge_index,
-            target_rot.view(len(target_list), -1, 9),
+            arm_rot.view(len(target_list), -1, 9),
             target_list[0].ee_mask,
         )
         * float(loss_gain[2])
@@ -89,7 +89,7 @@ def calculate_all_loss(
     losses.col.append(collision_loss.item())
     # joint limit loss
     lim_loss = (
-        calculate_lim_loss(target_list, target_ang, loss_criterion.lim)
+        calculate_lim_loss(target_list, arm_ang, loss_criterion.lim)
         * float(loss_gain[3])
         if loss_criterion.lim
         else torch.tensor([0])
@@ -97,7 +97,7 @@ def calculate_all_loss(
     losses.lim.append(lim_loss.item())
     # end effector orientation loss
     ori_loss = (
-        calculate_ori_loss(data_list, target_list, target_rot, loss_criterion.ori)
+        calculate_ori_loss(data_list, target_list, arm_rot, loss_criterion.ori)
         * float(loss_gain[4])
         if loss_criterion.ori
         else torch.tensor([0])

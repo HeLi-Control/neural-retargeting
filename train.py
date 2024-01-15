@@ -53,11 +53,11 @@ def train_epoch(model_params: Model_Params):
             # forward
             if model_params.z_all is not None:
                 z = model_params.z_all[batch_idx]
-                _, target_data, hand_data = model_params.model.decode(
+                _, arm_data, hand_data = model_params.model.decode(
                     z, Batch.from_data_list(target_list).to(model_params.device)
                 )
             else:
-                z, target_data, hand_data = model_params.model(
+                z, arm_data, hand_data = model_params.model(
                     Batch.from_data_list(data_list).to(model_params.device),
                     Batch.from_data_list(target_list).to(model_params.device),
                 )
@@ -67,7 +67,7 @@ def train_epoch(model_params: Model_Params):
                 target_list,
                 model_params.loss_criterion,
                 z,
-                target_data,
+                arm_data,
                 hand_data,
                 losses,
                 model_params.loss_gain,
