@@ -14,3 +14,5 @@ INFERENCE:
   H5:
     BOOL: True
     PATH: "./saved/inferenced/"
+  PYBULLET:
+    BOOL: True

@@ -12,7 +12,6 @@ from utils.util import create_folder
 
 from tqdm import *
 import h5py
-
 import os
 
 # Argument parse
@@ -81,7 +80,7 @@ if __name__ == "__main__":
 
     inferenced_data = (
         {"l_arm": [], "r_arm": [], "l_hand": [], "r_hand": []}
-        if cfg.INFERENCE.H5.BOOL
+        if (cfg.INFERENCE.H5.BOOL or cfg.INFERENCE.PYBULLET.BOOL)
         else None
     )
     create_folder(cfg.INFERENCE.H5.PATH)
@@ -93,6 +92,10 @@ if __name__ == "__main__":
         print("Model evaluating...")
         model.eval()
         print("Inferencing...")
+        # Start simulation
+        if cfg.INFERENCE.PYBULLET.BOOL:
+            from simulation import YuMi_Simulation
+        yumi_sim = YuMi_Simulation() if cfg.INFERENCE.PYBULLET.BOOL else None
         for batch_idx, data_list in tqdm(
             enumerate(test_loader), total=len(test_loader), leave=False
         ):
@@ -103,7 +106,8 @@ if __name__ == "__main__":
                     Batch.from_data_list(data_list).to(device),
                     Batch.from_data_list(target_list).to(device),
                 )
-                if cfg.INFERENCE.H5.BOOL:
+                # Save data
+                if inferenced_data is not None:
                     inferenced_data["l_arm"].append(
                         arm_data.arm_ang.squeeze().tolist()[
                             : int(arm_data.arm_ang.size(0) / 2)
@@ -120,6 +124,19 @@ if __name__ == "__main__":
                     inferenced_data["r_hand"].append(
                         hand_data.r_hand_ang.squeeze().tolist()[1:]
                     )
+                    # Step the simulation
+                    data_frame = (
+                        inferenced_data["l_arm"][-1]
+                        + inferenced_data["l_hand"][-1]
+                        + inferenced_data["r_arm"][-1]
+                        + inferenced_data["r_hand"][-1]
+                    )
+                if cfg.INFERENCE.PYBULLET.BOOL:
+                    yumi_sim.step_simulation(data_frame)
+        if cfg.INFERENCE.PYBULLET.BOOL:
+            # Stop the simulation
+            yumi_sim.close_simulation()
+            del yumi_sim
 
         if cfg.INFERENCE.H5.BOOL:
             # save data

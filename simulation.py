@@ -1,14 +1,19 @@
 import pybullet
-import time
 import pybullet_data
 import h5py
 import os
+from models.kinematics import ForwardKinematicsURDF
+import torch
 
 
 class YuMi_Simulation:
-    def __init__(self):
+    def __init__(self, disp_gui=True):
         # Connect the client
-        self.client = pybullet.connect(pybullet.GUI)
+        self.client = (
+            pybullet.connect(pybullet.GUI)
+            if disp_gui
+            else pybullet.connect(pybullet.DIRECT)
+        )
         pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_GUI, 0)
         # Add source path
         pybullet.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -37,6 +42,7 @@ class YuMi_Simulation:
         self.rgba_color = pybullet.getVisualShapeData(self.robot_id)[
             self.available_joints_indices[0]
         ][7]
+        self.red_color = [1, 0, 0, 1]
 
     def close_simulation(self):
         pybullet.disconnect(self.client)
@@ -45,12 +51,24 @@ class YuMi_Simulation:
         # Control joints
         pybullet.stepSimulation()
         pybullet.setJointMotorControlArray(
-            bodyUniqueId=yumi.robot_id,
-            jointIndices=yumi.available_joints_indices,
+            bodyUniqueId=self.robot_id,
+            jointIndices=self.available_joints_indices,
             controlMode=pybullet.POSITION_CONTROL,
             targetPositions=target_positions,
         )
-        # check collision
+        # Collision check
+        self.collision_check()
+        for joint in self.available_joints_indices:
+            if (
+                ("Link51" in str(self.all_joints_names[joint])[2:])
+                or ("Link52" in str(self.all_joints_names[joint])[2:])
+                or ("Link53" in str(self.all_joints_names[joint])[2:])
+            ):
+                pybullet.changeVisualShape(
+                    self.robot_id, joint, rgbaColor=self.red_color
+                )
+
+    def collision_check(self):
         for joint in self.available_joints_indices:
             if (
                 len(
@@ -66,15 +84,15 @@ class YuMi_Simulation:
                 ):
                     print(
                         "Collision Occurred in {} & {}!!!".format(
-                            self.all_joints_names[contact[3]],
-                            self.all_joints_names[contact[4]],
+                            self.all_joints_names[contact[3]][2:],
+                            self.all_joints_names[contact[4]][2:],
                         )
                     )
                     pybullet.changeVisualShape(
-                        self.robot_id, contact[3], rgbaColor=[1, 0, 0, 1]
+                        self.robot_id, contact[3], rgbaColor=self.red_color
                     )
                     pybullet.changeVisualShape(
-                        self.robot_id, contact[4], rgbaColor=[1, 0, 0, 1]
+                        self.robot_id, contact[4], rgbaColor=self.red_color
                     )
             else:
                 pybullet.changeVisualShape(
@@ -88,8 +106,8 @@ class YuMi_Simulation:
     @property
     def available_joints_names(self):
         return [
-            pybullet.getJointInfo(self.robot_id, index)[1]
-            for index in self.available_joints_indices
+            pybullet.getJointInfo(self.robot_id, i)[1]
+            for i in self.available_joints_indices
         ]
 
     @property
@@ -112,14 +130,22 @@ if __name__ == "__main__":
     h5_file = h5py.File(h5_files[0], "r")  # Read only the first file
     # Display all frames
     for index in range(len(list(h5_file["l_hand"]))):
+        # right arm, right arm, left arm, left hand
         data_frame = (
-            list(h5_file["l_arm"])[index].tolist()
-            + list(h5_file["l_hand"])[index].tolist()
-            + list(h5_file["r_arm"])[index].tolist()
+            list(h5_file["r_arm"])[index].tolist()
             + list(h5_file["r_hand"])[index].tolist()
+            + list(h5_file["l_arm"])[index].tolist()
+            + list(h5_file["l_hand"])[index].tolist()
         )
         yumi.step_simulation(data_frame)
-        time.sleep(0.005)
+        # # Reconstruct data in network
+        # kinematics_data = torch.tensor(
+        #     list(h5_file["l_arm"])[index].tolist()
+        #     + list(h5_file["r_arm"])[index].tolist()
+        #     + list(h5_file["l_hand"])[index].tolist()
+        #     + list(h5_file["r_hand"])[index].tolist()
+        # )
+        # _, _, global_pos = ForwardKinematicsURDF(kinematics_data.unsqueeze(1), 1)
     print(yumi.available_joints_names)
     # Stop the simulation
     yumi.close_simulation()
