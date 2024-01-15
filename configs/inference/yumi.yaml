@@ -27,4 +27,4 @@ LOSS:
 INFERENCE:
   H5:
     BOOL: True
-    PATH: "./saved/inferenced"
+    PATH: "./saved/inferenced/"

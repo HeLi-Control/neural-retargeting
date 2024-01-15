@@ -8,6 +8,7 @@ import dataset
 from dataset import Normalize
 import models.model as model
 from utils.config import cfg
+from utils.util import create_folder
 
 from tqdm import *
 import h5py
@@ -78,6 +79,7 @@ if __name__ == "__main__":
         exit(1)
 
     inferenced_data = [] if cfg.INFERENCE.H5.BOOL else None
+    create_folder(cfg.INFERENCE.H5.PATH)
 
     # Inference
     for model_file in inference_model_files:
