@@ -15,4 +15,7 @@ INFERENCE:
     BOOL: True
     PATH: "./saved/inferenced/"
   PYBULLET:
-    BOOL: True
+    BOOL: False
+  RUN:
+    INFERENCE: False
+    HUMAN_DEMONSTRATE: True
