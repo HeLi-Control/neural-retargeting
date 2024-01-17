@@ -1,8 +1,8 @@
 DATASET:
   TEST:
     SOURCE_NAME: "SignAll"
-    SOURCE_PATH: "./data/source/sign-all/train"
-    # SOURCE_PATH: "./data/source/sign-all/test"
+#    SOURCE_PATH: "./data/source/sign-all/train"
+    SOURCE_PATH: "./data/source/sign-all/test"
     TARGET_NAME: "YumiAll"
     TARGET_PATH: "./data/target/yumi-all"
 MODEL:
@@ -10,7 +10,6 @@ MODEL:
 HYPER:
   EPOCHS: 1
   BATCH_SIZE: 1
-  LEARNING_RATE: 0.00003
 INFERENCE:
   H5:
     BOOL: True
