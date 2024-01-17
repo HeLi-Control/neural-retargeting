@@ -5,38 +5,30 @@ import os
 from models.kinematics import ForwardKinematicsURDF
 import torch
 from scipy.spatial.transform import Rotation
-from models.loss import Loss, CollisionLoss, calculate_all_loss
-import torch.nn as nn
 
 import dataset
 
 
 class Display_Debug_Msg:
-    def __init__(self, debug=True, inferenced_file=None, demonstrate_file=None) -> None:
-        self.debug_message = debug
-        if not debug:
-            return
-        self.hand_fk = ForwardKinematicsURDF()
-        self.targets = sorted(
-            [
-                target
-                for target in getattr(dataset, "YumiAll")(root="./data/target/yumi-all")
-            ],
-            key=lambda target: target.skeleton_type,
-        )[0]
-        self.human_demonstrate = (
-            demonstrate_file if demonstrate_file is not None else None
-        )
-        self.inferenced_file = inferenced_file if inferenced_file is not None else None
-        self.loss_criterion = Loss(
-            ee=nn.MSELoss(),
-            vec=nn.MSELoss(),
-            col=CollisionLoss(0.15),
-            lim=None,
-            ori=nn.MSELoss(),
-            fin=nn.MSELoss(),
-            reg=None,
-        )
+    def __init__(self, debug_cfg, inferenced_file=None, demonstrate_file=None) -> None:
+        self.debug_message = debug_cfg
+        if self.debug_message["draw_debug"]:
+            self.hand_fk = ForwardKinematicsURDF()
+            self.targets = sorted(
+                [
+                    target
+                    for target in getattr(dataset, "YumiAll")(
+                        root="./data/target/yumi-all"
+                    )
+                ],
+                key=lambda target: target.skeleton_type,
+            )[0]
+            self.human_demonstrate = (
+                demonstrate_file if demonstrate_file is not None else None
+            )
+            self.inferenced_file = (
+                inferenced_file if inferenced_file is not None else None
+            )
 
     def __calc_hand_forward_kinematics(self, l_arm, r_arm):
         _, _, global_pos = self.hand_fk(
@@ -124,18 +116,15 @@ class Display_Debug_Msg:
             lifeTime=0.95,
         )
 
-    def disp_loss_message(self):
-        # _, losses = calculate_all_loss(
-        #     data_list,
-        #     target_list,
-        #     self.loss_criterion,
-        #     None,
-        #     arm_data,
-        #     hand_data,
-        #     None,
-        #     model_params.loss_gain,
-        # )
-        pass
+    def print_loss_message(self, loss):
+        print(
+            "EE {:.2f} | Vec {:.2f}| Ori {:.2f} | Fin {:.2f}".format(
+                loss[0],
+                loss[1],
+                loss[2],
+                loss[3],
+            )
+        )
 
     def disp(
         self,
@@ -146,20 +135,21 @@ class Display_Debug_Msg:
         r_arm_demonstrate=None,
         ee_matrix_l=None,
         ee_matrix_r=None,
+        loss=None,
     ):
-        if not self.debug_message:
-            return
-        self.disp_forward_kinematics(index, l_arm_ang, r_arm_ang)
-        self.disp_demonstrate_arm(index, l_arm_demonstrate, r_arm_demonstrate)
-        self.disp_end_effector_oritation(index, ee_matrix_l, ee_matrix_r)
-        self.disp_loss_message(index, ee_matrix_l, ee_matrix_r)
+        if self.debug_message["draw_debug"]:
+            self.disp_forward_kinematics(index, l_arm_ang, r_arm_ang)
+            self.disp_demonstrate_arm(index, l_arm_demonstrate, r_arm_demonstrate)
+            self.disp_end_effector_oritation(index, ee_matrix_l, ee_matrix_r)
+        if self.debug_message["print_debug"]:
+            self.print_loss_message(loss)
 
 
 class YuMi_Simulation:
     def __init__(
         self,
+        debug_message_cfg,
         disp_gui=True,
-        debug_message=True,
         inferenced_file=None,
         demonstrate_file=None,
     ):
@@ -201,7 +191,7 @@ class YuMi_Simulation:
         self.red_color = [1, 0, 0, 1]
         # Debug messages
         self.debug_msg_disp = Display_Debug_Msg(
-            debug=debug_message,
+            debug_cfg=debug_message_cfg,
             inferenced_file=self.inferenced_file,
             demonstrate_file=demonstrate_file,
         )
@@ -212,6 +202,7 @@ class YuMi_Simulation:
             self.inferenced_file.close()
 
     def step_simulation(self, index=None, given_joints_angles=None):
+        pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_SINGLE_STEP_RENDERING)
         if index is not None:
             # right arm, right arm, left arm, left hand
             data_frame = (
@@ -240,7 +231,9 @@ class YuMi_Simulation:
         # Collision check
         self.collision_check()
         # Display debug messages
-        self.debug_msg_disp.disp(index)
+        self.debug_msg_disp.disp(
+            index, loss=self.inferenced_file["loss"][index].tolist()
+        )
 
     def collision_check(self):
         for joint in self.available_joints_indices:
@@ -312,6 +305,7 @@ def search_inferenced_files(path_name) -> list:
 if __name__ == "__main__":
     # Initialize the simulation
     yumi = YuMi_Simulation(
+        debug_message_cfg={"draw_debug": False, "print_debug": True},
         inferenced_file=h5py.File(search_inferenced_files("saved/inferenced")[0], "r"),
         demonstrate_file=h5py.File("saved/inferenced/humanDemonstrate.h5", "r"),
     )

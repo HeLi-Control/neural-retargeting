@@ -39,16 +39,19 @@ def calculate_all_loss(
     """
     Calculate All Loss
     """
-    losses = Loss(
-        ee=losses.ee if losses.ee is not None else [],
-        vec=losses.vec if losses.vec is not None else [],
-        col=losses.col if losses.col is not None else [],
-        lim=losses.lim if losses.lim is not None else [],
-        ori=losses.ori if losses.ori is not None else [],
-        fin=losses.fin if losses.fin is not None else [],
-        reg=losses.reg if losses.reg is not None else [],
-        sum=losses.sum if losses.sum is not None else [],
-    )
+    if losses is not None:
+        losses = Loss(
+            ee=losses.ee if losses.ee is not None else [],
+            vec=losses.vec if losses.vec is not None else [],
+            col=losses.col if losses.col is not None else [],
+            lim=losses.lim if losses.lim is not None else [],
+            ori=losses.ori if losses.ori is not None else [],
+            fin=losses.fin if losses.fin is not None else [],
+            reg=losses.reg if losses.reg is not None else [],
+            sum=losses.sum if losses.sum is not None else [],
+        )
+    else:
+        losses = Loss([], [], [], [], [], [], [], [])
     loss_gain = loss_gain if loss_gain is not None else torch.ones(7).unsqueeze(dim=1)
 
     arm_pos = arm_data.arm_pos

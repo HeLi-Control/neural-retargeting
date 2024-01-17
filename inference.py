@@ -1,8 +1,11 @@
 import torch
+import torch.nn as nn
 import torch_geometric.transforms as transforms
 from torch_geometric.data import Batch
 from torch_geometric.loader import DataListLoader
 import argparse
+
+from models.loss import calculate_all_loss, Loss
 
 import dataset
 from dataset import Normalize
@@ -34,14 +37,26 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class Inference:
-    def __init__(self) -> None:
+    def __init__(self, inference_loss=False) -> None:
         self.load_data()
         self.inferenced_data = {
             "l_arm": [],
             "r_arm": [],
             "l_hand": [],
             "r_hand": [],
+            "loss": [],
         }
+        self.inference_loss = inference_loss
+        if self.inference_loss:
+            self.loss_criterion = Loss(
+                ee=nn.MSELoss() if cfg.LOSS.EE else None,
+                vec=nn.MSELoss() if cfg.LOSS.VEC else None,
+                col=None,
+                lim=None,
+                ori=nn.MSELoss() if cfg.LOSS.ORI else None,
+                fin=nn.MSELoss() if cfg.LOSS.FIN else None,
+                reg=None,
+            )
 
     def init_model(self, model_name: str):
         # Create model
@@ -49,9 +64,9 @@ class Inference:
 
     def load_data(self):
         # Load data
-        pre_transform = transforms.Compose([Normalize()])
         self.test_set = getattr(dataset, cfg.DATASET.TEST.SOURCE_NAME)(
-            root=cfg.DATASET.TEST.SOURCE_PATH, pre_transform=pre_transform
+            root=cfg.DATASET.TEST.SOURCE_PATH,
+            pre_transform=transforms.Compose([Normalize()]),
         )
         self.test_loader = DataListLoader(
             self.test_set,
@@ -82,7 +97,8 @@ class Inference:
         )
         return arm_data, hand_data
 
-    def save_inferenced_frame_data(self, arm_data, hand_data):
+    def save_inferenced_frame_data(self, arm_data, hand_data, data_list=None):
+        # inferenced data
         self.inferenced_data["l_arm"].append(
             arm_data.arm_ang.squeeze().tolist()[: int(arm_data.arm_ang.size(0) / 2)]
         )
@@ -96,13 +112,30 @@ class Inference:
             hand_data.r_hand_ang.squeeze().tolist()[1:]
         )
 
-    def save_inferenced_all_data(self, save_path: str):
+        new_loss = [0, 0, 0, 0]
+        if self.inference_loss:
+            # loss calculation
+            _, losses = calculate_all_loss(
+                data_list,
+                [self.test_target[0] for _ in data_list],
+                self.loss_criterion,
+                None,
+                arm_data,
+                hand_data,
+                None,
+                torch.tensor(cfg.LOSS.LOSS_GAIN),
+            )
+            new_loss = [losses.ee[-1], losses.vec[-1], losses.ori[-1], losses.fin[-1]]
+        self.inferenced_data["loss"].append(new_loss)
+
+    def save_all_inferenced_data(self, save_path: str):
         h5_file = h5py.File(save_path, "w")
         if h5_file is not None:
             h5_file["l_arm"] = self.inferenced_data["l_arm"]
             h5_file["r_arm"] = self.inferenced_data["r_arm"]
             h5_file["l_hand"] = self.inferenced_data["l_hand"]
             h5_file["r_hand"] = self.inferenced_data["r_hand"]
+            h5_file["loss"] = self.inferenced_data["loss"]
         h5_file.close()
 
 
@@ -145,15 +178,16 @@ def save_demonstrate_actions(save_file_name: str, test_loader):
 
 
 if __name__ == "__main__":
-    inference = Inference()
+    inference = Inference(inference_loss=True)
     create_folder(cfg.INFERENCE.H5.PATH)
 
     # Save source data
     if cfg.INFERENCE.RUN.HUMAN_DEMONSTRATE:
-        print("Saving source data.")
+        print("Scanning source data...")
         save_demonstrate_actions(
             cfg.INFERENCE.H5.PATH + "humanDemonstrate.h5", inference.test_loader
         )
+        print("Saved source data...")
 
     # Inference
     if cfg.INFERENCE.RUN.INFERENCE:
@@ -161,12 +195,15 @@ if __name__ == "__main__":
         if cfg.INFERENCE.PYBULLET.BOOL:
             from simulation import YuMi_Simulation
         yumi_sim = (
-            YuMi_Simulation(disp_gui=True, debug_message=False)
+            YuMi_Simulation(
+                disp_gui=True,
+                debug_message_cfg={"draw_debug": False, "print_debug": False},
+            )
             if cfg.INFERENCE.PYBULLET.BOOL
             else None
         )
         print("Inferencing.")
-        inference.init_model()
+        inference.init_model(cfg.MODEL.NAME)
         inference_model_files = search_checkpoints(cfg.MODEL.CHECKPOINT)
         for model_file in inference_model_files:
             # load model
@@ -181,7 +218,7 @@ if __name__ == "__main__":
                 # Inference a frame
                 arm_data, hand_data = inference.inference_frame(data_list)
                 # Save data
-                inference.save_inferenced_frame_data(arm_data, hand_data)
+                inference.save_inferenced_frame_data(arm_data, hand_data, data_list)
                 # Step the simulation
                 if cfg.INFERENCE.PYBULLET.BOOL:
                     data_frame = (
@@ -198,6 +235,6 @@ if __name__ == "__main__":
             del yumi_sim
 
         if cfg.INFERENCE.H5.BOOL:
-            inference.save_inferenced_all_data(
+            inference.save_all_inferenced_data(
                 cfg.INFERENCE.H5.PATH + os.path.basename(model_file)[:-4] + ".h5"
             )

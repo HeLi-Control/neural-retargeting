@@ -1,7 +1,8 @@
 DATASET:
   TEST:
     SOURCE_NAME: "SignAll"
-    SOURCE_PATH: "./data/source/sign-all/test"
+    SOURCE_PATH: "./data/source/sign-all/train"
+    # SOURCE_PATH: "./data/source/sign-all/test"
     TARGET_NAME: "YumiAll"
     TARGET_PATH: "./data/target/yumi-all"
 MODEL:
@@ -17,5 +18,6 @@ INFERENCE:
   PYBULLET:
     BOOL: False
   RUN:
-    INFERENCE: False
-    HUMAN_DEMONSTRATE: True
+    INFERENCE: True
+    INFERENCE_LOSS: True
+    HUMAN_DEMONSTRATE: False
