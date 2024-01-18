@@ -11,5 +11,5 @@ LOSS:
   FIN: True
   REG: True
   LOSS_USING_GAIN: True
-#               ee,       vec,    col,  lim,  ori,    fin,  reg
-  LOSS_GAIN: [[100000], [80000], [100], [0], [6000], [800], [20]]
+#               ee,       vec,    col,  lim,   ori,    fin,  reg
+  LOSS_GAIN: [[100000], [80000], [100], [0], [10000], [800], [20]]

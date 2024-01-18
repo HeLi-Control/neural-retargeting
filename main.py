@@ -13,9 +13,10 @@ from utils.config import cfg
 from utils.util import create_folder
 
 import os
-import logging
 import argparse
 from datetime import datetime
+
+from loguru import logger
 
 
 def get_varying_learning_rate(
@@ -33,7 +34,6 @@ def save_model(
     save_path: str,
     epoch_now: int,
     best_loss_now: float,
-    logger: logging.Logger,
 ):
     torch.save(
         train_model.state_dict(),
@@ -42,7 +42,7 @@ def save_model(
             "best_model_epoch_{:03d}_loss_{:.2f}.pth".format(epoch_now, best_loss_now),
         ),
     )
-    logger.info("Epoch {} Model Saved".format(epoch_now + 1).center(100, "-"))
+    logger.info("Epoch {} Model Saved".format(epoch_now + 1))
 
 
 def get_model_params(train_loader, train_target, device, cfg):
@@ -64,7 +64,6 @@ def get_model_params(train_loader, train_target, device, cfg):
         loader=train_loader,
         target=train_target,
         epoch=0,
-        logger=logging.getLogger(),
         interval=cfg.OTHERS.LOG_INTERVAL,
         writer=None,
         device=device,
@@ -81,7 +80,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if __name__ == "__main__":
     # Search for all yaml files in the path
     yaml_path = "configs/train/"
-    print("Scanning processed files...")
+    logger.debug("Scanning processed files...")
     train_yaml = None
     global_yaml = "configs/global.yaml"
     params_yaml_files = []
@@ -94,8 +93,7 @@ if __name__ == "__main__":
                 params_yaml_files.append(os.path.join(path, file).replace("\\", "/"))
     # For all yaml files train a new net
     for yaml_file in params_yaml_files:
-        print("<" * 80)
-        print("Reading from yaml file:", yaml_file)
+        logger.info("Read from yaml file:" + yaml_file)
 
         # Argument parse
         parser = argparse.ArgumentParser(description="Command line arguments")
@@ -154,36 +152,35 @@ if __name__ == "__main__":
         )
 
         for times in range(cfg.HYPER.TRAIN_TIMES):
-            print("Times:", times + 1)
-            print(">" * 80)
+            logger.info("Times:{}".format(times + 1))
             # set model params
             model_params = get_model_params(train_loader, train_target, device, cfg)
             if cfg.MODEL.LOAD_CHECKPOINT:
-                model_params.model.load_state_dict(torch.load(cfg.MODEL.CHECKPOINT))
-                print("Loaded trained model:", cfg.MODEL.CHECKPOINT)
+                if cfg.MODEL.CHECKPOINT_RANDOM:
+                    checkpoints = []
+                    paths = os.walk(cfg.MODEL.CHECKPOINT)
+                    for path, dir_list, file_list in paths:
+                        for file in file_list:
+                            if file.endswith(".pth"):
+                                checkpoints.append(
+                                    os.path.join(path, file).replace("\\", "/")
+                                )
+                    import random
+
+                    checkpoint = random.choice(checkpoints)
+                    model_params.model.load_state_dict(torch.load(checkpoint))
+                    logger.info("Loaded trained model:" + checkpoint)
+                else:
+                    model_params.model.load_state_dict(torch.load(cfg.MODEL.CHECKPOINT))
+                    logger.info("Loaded trained model:" + cfg.MODEL.CHECKPOINT)
             # Create folder
             save = cfg.OTHERS.SAVE + "/{}".format(times + 1)
-            log = cfg.OTHERS.LOG + "/{}".format(times + 1)
             summary = cfg.OTHERS.SUMMARY + "/{}".format(times + 1)
             create_folder(save)
-            create_folder(log)
             create_folder(summary)
+            logger.add(sink=save + "/train_{time}.log", rotation="5MB")
             model_params.writer = SummaryWriter(
                 os.path.join(summary, "{:%Y-%m-%d_%H-%M-%S}".format(datetime.now()))
-            )
-            # Create logger & tensorboard writer
-            logging.basicConfig(
-                level=logging.INFO,
-                format="%(message)s",
-                handlers=[
-                    logging.FileHandler(
-                        os.path.join(
-                            log,
-                            "{:%Y-%m-%d_%H-%M-%S}.log".format(datetime.now()),
-                        )
-                    ),
-                    logging.StreamHandler(),
-                ],
             )
             # Set the best loss
             best_loss = float("Inf")
@@ -217,7 +214,6 @@ if __name__ == "__main__":
                         save,
                         epoch,
                         best_loss,
-                        model_params.logger,
                     )
             del model_params
             best_loss = float("Inf")

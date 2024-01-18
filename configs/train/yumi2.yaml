@@ -2,13 +2,13 @@ HYPER:
   TRAIN_TIMES: 5
   EPOCHS: 30
   BATCH_SIZE: 35
-  LEARNING_RATE: 0.0001
+  LEARNING_RATE: 0.00002
   VARIABLE_LEARNING_RATE: True
   VARIABLE_LEARNING_RATE_GAIN: 8
 OTHERS:
   SAVE: "./saved/models/yumi_2"
-  LOG: "./saved/log/yumi_2"
   SUMMARY: "./saved/runs/yumi_2"
 MODEL:
   LOAD_CHECKPOINT: True
-  CHECKPOINT: "./saved/models/checkpoints/best_model_loss_793.86.pth"
+  CHECKPOINT: "./saved/models/checkpoints"
+  CHECKPOINT_RANDOM: True

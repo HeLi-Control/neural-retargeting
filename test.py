@@ -3,11 +3,11 @@ from torch_geometric.data import Batch
 from models.loss import calculate_all_loss, Loss
 import time
 from train import Model_Params
+from loguru import logger
 
 
 def log_data(
     writer,
-    logger,
     epoch: int,
     loss: Loss,
     start_time: float,
@@ -53,7 +53,7 @@ def record_actions(arm_data, hand_data, inferenced_data):
 
 def test_epoch(model_params: Model_Params, test_info_all=False, record_actions=False):
     epoch = model_params.epoch
-    model_params.logger.info("Testing Epoch {}".format(epoch + 1).center(100, "-"))
+    logger.info("Testing Epoch {}".format(epoch + 1))
     start_time = time.time()
 
     model_params.model.eval()
@@ -93,7 +93,7 @@ def test_epoch(model_params: Model_Params, test_info_all=False, record_actions=F
                     )
             # log
             if test_info_all:
-                model_params.logger.info(
+                logger.info(
                     "Sum {:.2f} | EE {:.2f} | Vec {:.2f} | Col {:.2f} | Lim {:.2f} | "
                     "Ori {:.2f} | Fin {:.2f} | Reg {:.2f}".format(
                         losses.sum[-1],
@@ -119,7 +119,7 @@ def test_epoch(model_params: Model_Params, test_info_all=False, record_actions=F
         reg=sum(losses.reg) / len(losses.reg),
     )
     # Log
-    log_data(model_params.writer, model_params.logger, epoch, loss, start_time)
+    log_data(model_params.writer, epoch, loss, start_time)
 
     if record_actions:
         return test_loss, inferenced_data

@@ -17,6 +17,8 @@ from tqdm import *
 import h5py
 import os
 
+from loguru import logger
+
 # Argument parse
 parser = argparse.ArgumentParser(description="Inference with trained model")
 parser.add_argument(
@@ -129,7 +131,7 @@ class Inference:
             )
             new_loss = [losses.ee[-1], losses.vec[-1], losses.ori[-1], losses.fin[-1]]
             if print_loss:
-                print(new_loss)
+                logger.info(new_loss)
         self.inferenced_data["loss"].append(new_loss)
 
     def save_all_inferenced_data(self, save_path: str):
@@ -194,11 +196,11 @@ if __name__ == "__main__":
     create_folder(cfg.INFERENCE.H5.PATH)
     # Save source data
     if cfg.INFERENCE.RUN.HUMAN_DEMONSTRATE:
-        print("Scanning source data...")
+        logger.debug("Scanning source data...")
         save_demonstrate_actions(
             cfg.INFERENCE.H5.PATH + "humanDemonstrate.h5", inference.test_loader
         )
-        print("Saved source data...")
+        logger.debug("Saved source data...")
     # Inference
     if cfg.INFERENCE.RUN.INFERENCE:
         # Start simulation
@@ -212,13 +214,13 @@ if __name__ == "__main__":
             if cfg.INFERENCE.PYBULLET.BOOL
             else None
         )
-        print("Inferencing.")
+        logger.debug("Inferencing.")
         inference.init_model(cfg.MODEL.NAME)
         inference_model_files = search_checkpoints(cfg.MODEL.CHECKPOINT)
         for model_file in inference_model_files:
             # load model
             inference.load_trained_model(model_file)
-            print("Loaded model:", model_file)
+            logger.info("Loaded model:" + model_file)
             # Inference
             with torch.no_grad():
                 for _, data_list in tqdm(

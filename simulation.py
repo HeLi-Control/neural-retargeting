@@ -7,6 +7,7 @@ import torch
 from scipy.spatial.transform import Rotation
 
 import dataset
+from loguru import logger
 
 
 class Display_Debug_Msg:
@@ -117,7 +118,7 @@ class Display_Debug_Msg:
         )
 
     def print_loss_message(self, loss):
-        print(
+        logger.info(
             "EE {:.2f} | Vec {:.2f}| Ori {:.2f} | Fin {:.2f}".format(
                 loss[0],
                 loss[1],
@@ -249,7 +250,7 @@ class YuMi_Simulation:
                 for contact in pybullet.getContactPoints(
                     bodyA=self.robot_id, linkIndexA=joint
                 ):
-                    print(
+                    logger.error(
                         "Collision Occurred in {} & {}!!!".format(
                             str(self.all_joints_names[contact[3]])[2:],
                             str(self.all_joints_names[contact[4]])[2:],
@@ -303,14 +304,19 @@ def search_inferenced_files(path_name) -> list:
 
 
 if __name__ == "__main__":
-    # Initialize the simulation
-    yumi = YuMi_Simulation(
-        debug_message_cfg={"draw_debug": False, "print_debug": True},
-        inferenced_file=h5py.File(search_inferenced_files("saved/inferenced")[0], "r"),
-        demonstrate_file=h5py.File("saved/inferenced/humanDemonstrate.h5", "r"),
-    )
-    # Display all frames
-    for index in range(yumi.data_frame_num):
-        yumi.step_simulation(index)
-    # Stop the simulation
-    yumi.close_simulation()
+    # Start log file
+    logger.add(sink="./saved/inferenced/simulation_{time}.log", rotation="5MB")
+    inferenced_files = search_inferenced_files("./saved/inferenced")
+    for file in inferenced_files:
+        # Initialize the simulation
+        yumi = YuMi_Simulation(
+            debug_message_cfg={"draw_debug": False, "print_debug": True},
+            inferenced_file=h5py.File(file, "r"),
+            demonstrate_file=h5py.File("./saved/inferenced/humanDemonstrate.h5", "r"),
+        )
+        logger.info("Simulating file:" + file)
+        # Display all frames
+        for index in range(yumi.data_frame_num):
+            yumi.step_simulation(index)
+        # Stop the simulation
+        yumi.close_simulation()

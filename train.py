@@ -1,9 +1,8 @@
 import torch
 from torch_geometric.data import Batch
 from models.loss import calculate_all_loss, Loss
-import logging
+from loguru import logger
 from models.model import YumiNet
-from tensorboardX import SummaryWriter
 import time
 
 
@@ -16,7 +15,6 @@ class Model_Params:
         loader,
         target,
         epoch: int,
-        logger: logging.Logger,
         interval: int,
         writer,
         loss_gain: torch.Tensor,
@@ -29,7 +27,6 @@ class Model_Params:
         self.loader = loader
         self.target = target
         self.epoch = epoch
-        self.logger = logger
         self.interval = interval
         self.writer = writer
         self.device = device
@@ -39,7 +36,7 @@ class Model_Params:
 
 def train_epoch(model_params: Model_Params):
     epoch = model_params.epoch
-    model_params.logger.info("Training Epoch {}".format(epoch + 1).center(100, "-"))
+    logger.info("Training Epoch {}".format(epoch + 1))
     start_time = time.time()
 
     model_params.model.train()
@@ -80,8 +77,8 @@ def train_epoch(model_params: Model_Params):
             model_params.optimizer.step()
         # log
         if (batch_idx + 1) % model_params.interval == 0:
-            model_params.logger.info(
-                "epoch {:03d} | iteration {:03d} | Sum {:.2f} | EE {:.2f} | Vec {:.2f}"
+            logger.info(
+                "epoch {:03d} | it {:03d} | Sum {:.2f} | EE {:.2f} | Vec {:.2f}"
                 " | Col {:.2f} | Lim {:.2f} | Ori {:.2f} | Fin {:.2f} | Reg {:.2f}".format(
                     epoch + 1,
                     batch_idx + 1,
@@ -116,7 +113,7 @@ def train_epoch(model_params: Model_Params):
         "regularization_loss", {"train": reg_loss}, epoch + 1
     )
     end_time = time.time()
-    model_params.logger.info(
+    logger.info(
         "Epoch {:03d} | Training Time {:.2f} s | Avg Training {:.2f} | EE {:.2f} | Vec {:.2f} "
         "| Col {:.2f} | Lim {:.2f} | Ori {:.2f} | Fin {:.2f} | Reg {:.2f}".format(
             epoch + 1,

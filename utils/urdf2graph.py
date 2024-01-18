@@ -282,9 +282,7 @@ def hand2graph(urdf_file, cfg):
 if __name__ == "__main__":
     # yumi graph
     graph = yumi2graph(urdf_file="../data/target/yumi/yumi.urdf", cfg=yumi_cfg)
-    print("yumi", graph)
     # hand graph
     graph = hand2graph(
         urdf_file="../data/target/yumi-with-hands/yumi-with-hands.urdf", cfg=hand_cfg
     )
-    print("hand", graph)

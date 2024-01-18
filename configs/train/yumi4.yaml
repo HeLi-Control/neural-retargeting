@@ -7,8 +7,8 @@ HYPER:
   VARIABLE_LEARNING_RATE_GAIN: 8
 OTHERS:
   SAVE: "./saved/models/yumi_4"
-  LOG: "./saved/log/yumi_4"
   SUMMARY: "./saved/runs/yumi_4"
 MODEL:
   LOAD_CHECKPOINT: True
-  CHECKPOINT: "./saved/models/checkpoints/best_model_loss_796.49.pth"
+  CHECKPOINT: "./saved/models/checkpoints"
+  CHECKPOINT_RANDOM: True

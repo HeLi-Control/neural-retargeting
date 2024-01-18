@@ -292,7 +292,6 @@ def sphere_capsule_dist_square(
         dim=-1
     )  # vector p0-p1 * vector p0-pr [batch_size, num_nodes//2, num_edges//2]
     dist_square_p0 = torch.masked_select(vec_p0_pr.norm(dim=-1) ** 2, vec_mul_p0 <= 0)
-    # print(dist_square_p0.shape)
 
     # condition 2: p1 is the closest point
     vec_p1_p0 = capsule_p0 - capsule_p1  # vector p1-p0 [batch_size, num_edges//2, 3]
@@ -308,7 +307,6 @@ def sphere_capsule_dist_square(
         dim=-1
     )  # vector p1-p0 * vector p1-pr [batch_size, num_nodes//2, num_edges//2]
     dist_square_p1 = torch.masked_select(vec_p1_pr.norm(dim=-1) ** 2, vec_mul_p1 <= 0)
-    # print(dist_square_p1.shape)
 
     # condition 3: closest point in p0-p1 segment
     d = vec_mul_p0 / vec_p0_p1.norm(dim=-1).unsqueeze(1).expand(
@@ -320,7 +318,6 @@ def sphere_capsule_dist_square(
     dist_square_middle = torch.masked_select(
         dist_square_middle, (vec_mul_p0 > 0) & (vec_mul_p1 > 0)
     )
-    # print(dist_square_middle.shape)
 
     return torch.cat([dist_square_p0, dist_square_p1, dist_square_middle])
 
@@ -367,7 +364,6 @@ class CollisionLoss(nn.Module):
             # capsule p0 & p1
             p0 = pos[:, edge_index[0], :]
             p1 = pos[:, edge_index[1], :]
-            # print(edge_index.shape, p0.shape, p1.shape)
 
             # left sphere & right capsule
             l_sphere = pos[:, : num_nodes // 2, :]
@@ -422,7 +418,6 @@ class CollisionLoss(nn.Module):
             r_capsule_p0 = torch.cat([r_capsule_p0, r_ee_pos], dim=1)
             r_capsule_p1 = torch.cat([r_capsule_p1, r_hand_pos], dim=1)
             num_edges += 2
-            # print(l_capsule_p0.shape, l_capsule_p1.shape, r_capsule_p0.shape, r_capsule_p1.shape)
             # calculate loss
             dist_square = self.capsule_capsule_dist_square(
                 l_capsule_p0,
@@ -646,7 +641,6 @@ class CollisionLoss(nn.Module):
         t = torch.where((det <= 0) & (e > 0) & (e >= c), one, t)
         # 0 < e < c
         t = torch.where((det <= 0) & (e > 0) & (e < c), e / c, t)
-        # print(s, t)
         s = (
             s.unsqueeze(-1)
             .expand(batch_size, num_edges // 2, num_edges // 2, 3)
