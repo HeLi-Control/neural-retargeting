@@ -1,4 +1,5 @@
 DATASET:
+  TYPE: "test"
   TEST:
     SOURCE_NAME: "SignAll"
 #    SOURCE_PATH: "./data/source/sign-all/train"

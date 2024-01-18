@@ -19,27 +19,10 @@ import os
 
 from loguru import logger
 
-# Argument parse
-parser = argparse.ArgumentParser(description="Inference with trained model")
-parser.add_argument(
-    "--cfg",
-    default="configs/inference/inference.yaml",
-    type=str,
-    help="Path to configuration file",
-)
-args = parser.parse_args()
-
-# Configurations parse
-cfg.merge_from_file("configs/global.yaml")
-cfg.merge_from_file(args.cfg)
-cfg.freeze()
-
-# Device setting
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 class Inference:
-    def __init__(self, inference_calc_loss=False) -> None:
+    def __init__(self, inference_calc_loss=False, device=torch.device("cpu")) -> None:
+        self.device = device
         self.load_data()
         self.inferenced_data = {
             "l_arm": [],
@@ -62,7 +45,7 @@ class Inference:
 
     def init_model(self, model_name: str):
         # Create model
-        self.model = getattr(model, model_name)().to(device)
+        self.model = getattr(model, model_name)().to(self.device)
 
     def load_data(self):
         # Load data
@@ -94,8 +77,8 @@ class Inference:
     def inference_frame(self, data_list):
         # forward
         _, arm_data, hand_data = self.model(
-            Batch.from_data_list(data_list).to(device),
-            Batch.from_data_list(self.test_target_list).to(device),
+            Batch.from_data_list(data_list).to(self.device),
+            Batch.from_data_list(self.test_target_list).to(self.device),
         )
         return arm_data, hand_data
 
@@ -195,12 +178,31 @@ def save_demonstrate_actions(save_file_name: str, test_loader):
 
 
 if __name__ == "__main__":
-    inference = Inference(inference_calc_loss=True)
+    # Argument parse
+    parser = argparse.ArgumentParser(description="Inference with trained model")
+    parser.add_argument(
+        "--cfg",
+        default="configs/inference/inference.yaml",
+        type=str,
+        help="Path to configuration file",
+    )
+    args = parser.parse_args()
+    # Configurations parse
+    cfg.merge_from_file("configs/global.yaml")
+    cfg.merge_from_file(args.cfg)
+    cfg.freeze()
+    # Inference preparation
+    inference = Inference(
+        inference_calc_loss=True,
+        device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    )
     create_folder(cfg.INFERENCE.H5.PATH)
     # Save source data
     if cfg.INFERENCE.RUN.HUMAN_DEMONSTRATE:
         logger.debug("Scanning source data...")
-        file_name = cfg.INFERENCE.H5.PATH + "humanDemonstrate.h5"
+        file_name = (
+            cfg.INFERENCE.H5.PATH + "humanDemonstrate_" + cfg.DATASET.TYPE + ".h5"
+        )
         save_demonstrate_actions(file_name, inference.test_loader)
         logger.debug("Saved demonstrate data to file:" + file_name)
     # Inference
@@ -248,7 +250,11 @@ if __name__ == "__main__":
             # Save the model inferenced data
             if cfg.INFERENCE.H5.BOOL:
                 inference.save_all_inferenced_data(
-                    cfg.INFERENCE.H5.PATH + os.path.basename(model_file)[:-4] + ".h5"
+                    cfg.INFERENCE.H5.PATH
+                    + os.path.basename(model_file)[:-4]
+                    + "_"
+                    + cfg.DATASET.TYPE
+                    + ".h5"
                 )
         if cfg.INFERENCE.PYBULLET.BOOL:
             # Stop the simulation

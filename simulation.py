@@ -14,24 +14,19 @@ from utils.util import create_folder
 class Display_Debug_Msg:
     def __init__(self, debug_cfg, inferenced_file=None, demonstrate_file=None) -> None:
         self.debug_message = debug_cfg
-        if self.debug_message["draw_debug"]:
-            self.hand_fk = ForwardKinematicsURDF()
-            self.targets = sorted(
-                [
-                    target
-                    for target in getattr(dataset, "YumiAll")(
-                        root="./data/target/yumi-all"
-                    )
-                ],
-                key=lambda target: target.skeleton_type,
-            )[0]
-            self.inferenced_file = (
-                inferenced_file if inferenced_file is not None else None
-            )
-            self.disp_life_time = 0.01
+        self.targets = sorted(
+            [
+                target
+                for target in getattr(dataset, "YumiAll")(root="./data/target/yumi-all")
+            ],
+            key=lambda target: target.skeleton_type,
+        )[0]
+        self.disp_life_time = 0.01
         self.human_demonstrate = (
             demonstrate_file if demonstrate_file is not None else None
         )
+        self.inferenced_file = inferenced_file if inferenced_file is not None else None
+        self.hand_fk = ForwardKinematicsURDF()
 
     def __calc_hand_forward_kinematics(self, l_arm, r_arm):
         _, _, global_pos = self.hand_fk(
@@ -84,7 +79,7 @@ class Display_Debug_Msg:
                 lifeTime=self.disp_life_time,
             )
 
-    def disp_end_effector_oritation(
+    def disp_end_effector_orientation(
         self, index=None, ee_matrix_l=None, ee_matrix_r=None
     ):
         if self.human_demonstrate is not None:
@@ -130,22 +125,55 @@ class Display_Debug_Msg:
         )
 
     def print_human_demonstrate_arms(self, index):
-        # print arm joints' positions
+        # print demonstrate arm joints' positions
         logger.debug(
-            "Human right elbows position: "
-            + str(self.human_demonstrate["r_arm"][index][1])
+            "Human right shoulder-elbow vector: "
+            + str(
+                self.human_demonstrate["r_arm"][index][1]
+                - self.human_demonstrate["r_arm"][index][0]
+            )
         )
         logger.debug(
-            "Human right wrists position: "
-            + str(self.human_demonstrate["r_arm"][index][2])
+            "Human right shoulder-wrist vector: "
+            + str(
+                self.human_demonstrate["r_arm"][index][2]
+                - self.human_demonstrate["r_arm"][index][0]
+            )
         )
         logger.debug(
-            "Human left elbows position: "
-            + str(self.human_demonstrate["l_arm"][index][1])
+            "Human left shoulder-elbow vector: "
+            + str(
+                self.human_demonstrate["l_arm"][index][1]
+                - self.human_demonstrate["l_arm"][index][0]
+            )
         )
         logger.debug(
-            "Human left wrists position: "
-            + str(self.human_demonstrate["l_arm"][index][2])
+            "Human left shoulder-wrist vector: "
+            + str(
+                self.human_demonstrate["l_arm"][index][2]
+                - self.human_demonstrate["l_arm"][index][0]
+            )
+        )
+        # print robot arm joints' positions
+        global_pos = self.__calc_hand_forward_kinematics(
+            torch.tensor(self.inferenced_file["l_arm"][index]),
+            torch.tensor(self.inferenced_file["r_arm"][index]),
+        )
+        logger.debug(
+            "Robot right shoulder-elbow vector: "
+            + str((global_pos[11] - global_pos[7]).tolist())
+        )
+        logger.debug(
+            "Robot right shoulder-wrist vector: "
+            + str((global_pos[13] - global_pos[7]).tolist())
+        )
+        logger.debug(
+            "Robot left shoulder-elbow vector: "
+            + str((global_pos[4] - global_pos[0]).tolist())
+        )
+        logger.debug(
+            "Robot left shoulder-wrist vector: "
+            + str((global_pos[6] - global_pos[0]).tolist())
         )
 
     def disp(
@@ -162,7 +190,7 @@ class Display_Debug_Msg:
         if self.debug_message["draw_debug"]:
             self.disp_forward_kinematics(index, l_arm_ang, r_arm_ang)
             self.disp_demonstrate_arm(index, l_arm_demonstrate, r_arm_demonstrate)
-            self.disp_end_effector_oritation(index, ee_matrix_l, ee_matrix_r)
+            self.disp_end_effector_orientation(index, ee_matrix_l, ee_matrix_r)
         if self.debug_message["print_debug"]:
             self.print_loss_message(loss)
             self.print_human_demonstrate_arms(index)
@@ -197,10 +225,10 @@ class YuMi_Simulation:
         )
         # Set camera
         pybullet.resetDebugVisualizerCamera(
-            cameraDistance=1.4,
+            cameraDistance=1.2,
             cameraYaw=85,
             cameraPitch=-20,
-            cameraTargetPosition=[0, 0, 0.5],
+            cameraTargetPosition=[0, 0, 0.93],
         )
         # Get joints available
         self.available_joints_indices = [
@@ -292,12 +320,14 @@ class YuMi_Simulation:
                             str(self.all_joints_names[contact[4]])[2:-1],
                         )
                     )
-                    pybullet.changeVisualShape(
-                        self.robot_id, contact[3], rgbaColor=self.red_color
-                    )
-                    pybullet.changeVisualShape(
-                        self.robot_id, contact[4], rgbaColor=self.red_color
-                    )
+                    if contact[3] in self.available_joints_indices:
+                        pybullet.changeVisualShape(
+                            self.robot_id, contact[3], rgbaColor=self.red_color
+                        )
+                    if contact[4] in self.available_joints_indices:
+                        pybullet.changeVisualShape(
+                            self.robot_id, contact[4], rgbaColor=self.red_color
+                        )
             else:
                 pybullet.changeVisualShape(
                     self.robot_id, joint, rgbaColor=self.default_color
@@ -313,6 +343,10 @@ class YuMi_Simulation:
             pybullet.getJointInfo(self.robot_id, i)[1]
             for i in self.available_joints_indices
         ]
+
+    @property
+    def all_joints_numbers(self):
+        return len(self.all_joints_names)
 
     @property
     def all_joints_names(self):

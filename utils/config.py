@@ -3,6 +3,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.DATASET = CN()
+_C.DATASET.TYPE = None
 _C.DATASET.TRAIN = CN()
 _C.DATASET.TRAIN.SOURCE_NAME = None
 _C.DATASET.TRAIN.SOURCE_PATH = None
@@ -55,6 +56,7 @@ _C.INFERENCE.RUN.HUMAN_DEMONSTRATE = None
 _C.OTHERS = CN()
 _C.OTHERS.SAVE = None
 _C.OTHERS.SUMMARY = None
+_C.OTHERS.LOG = None
 _C.OTHERS.LOG_INTERVAL = None
 
 cfg = _C
