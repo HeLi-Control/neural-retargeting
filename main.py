@@ -178,7 +178,7 @@ if __name__ == "__main__":
             summary = cfg.OTHERS.SUMMARY + "/{}".format(times + 1)
             create_folder(save)
             create_folder(summary)
-            logger.add(sink=save + "/train_{time}.log", rotation="5MB")
+            logger.add(sink=save + "/train_{time}.log", rotation="5MB", encoding='utf-8')
             model_params.writer = SummaryWriter(
                 os.path.join(summary, "{:%Y-%m-%d_%H-%M-%S}".format(datetime.now()))
             )

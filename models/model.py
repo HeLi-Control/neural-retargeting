@@ -61,15 +61,11 @@ class Encoder(torch.nn.Module):
         self.conv3 = SpatialBasicBlock(
             in_channels=32, out_channels=64, edge_channels=dim
         )
-        self.conv4 = SpatialBasicBlock(
-            in_channels=64, out_channels=64, edge_channels=dim
-        )
 
     def reset_parameters(self):
         self.conv1.reset_parameters()
         self.conv2.reset_parameters()
         self.conv3.reset_parameters()
-        self.conv4.reset_parameters()
 
     def forward(self, x, edge_index, edge_attr):
         """
@@ -81,7 +77,6 @@ class Encoder(torch.nn.Module):
         out = self.conv1(x, edge_index, edge_attr)
         out = self.conv2(out, edge_index, edge_attr)
         out = self.conv3(out, edge_index, edge_attr)
-        out = self.conv4(out, edge_index, edge_attr)
         return out
 
 
@@ -89,15 +84,12 @@ class Decoder(torch.nn.Module):
     def __init__(self, channels, dim):
         super(Decoder, self).__init__()
         self.conv1 = SpatialBasicBlock(
-            in_channels=64 + 2, out_channels=64, edge_channels=dim
+            in_channels=64 + 2, out_channels=32, edge_channels=dim
         )
         self.conv2 = SpatialBasicBlock(
-            in_channels=64, out_channels=32, edge_channels=dim
-        )
-        self.conv3 = SpatialBasicBlock(
             in_channels=32, out_channels=16, edge_channels=dim
         )
-        self.conv4 = SpatialBasicBlock(
+        self.conv3 = SpatialBasicBlock(
             in_channels=16, out_channels=channels, edge_channels=dim
         )
 
@@ -105,7 +97,6 @@ class Decoder(torch.nn.Module):
         self.conv1.reset_parameters()
         self.conv2.reset_parameters()
         self.conv3.reset_parameters()
-        self.conv4.reset_parameters()
 
     def forward(self, x, edge_index, edge_attr, lower, upper):
         """
@@ -117,8 +108,7 @@ class Decoder(torch.nn.Module):
         x = torch.cat([x, lower, upper], dim=1)
         out = self.conv1(x, edge_index, edge_attr)
         out = self.conv2(out, edge_index, edge_attr)
-        out = self.conv3(out, edge_index, edge_attr)
-        out = self.conv4(out, edge_index, edge_attr).tanh()
+        out = self.conv3(out, edge_index, edge_attr).tanh()
         return out
 
 

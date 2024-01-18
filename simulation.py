@@ -8,6 +8,7 @@ from scipy.spatial.transform import Rotation
 
 import dataset
 from loguru import logger
+from utils.util import create_folder
 
 
 class Display_Debug_Msg:
@@ -24,12 +25,13 @@ class Display_Debug_Msg:
                 ],
                 key=lambda target: target.skeleton_type,
             )[0]
-            self.human_demonstrate = (
-                demonstrate_file if demonstrate_file is not None else None
-            )
             self.inferenced_file = (
                 inferenced_file if inferenced_file is not None else None
             )
+            self.disp_life_time = 0.01
+        self.human_demonstrate = (
+            demonstrate_file if demonstrate_file is not None else None
+        )
 
     def __calc_hand_forward_kinematics(self, l_arm, r_arm):
         _, _, global_pos = self.hand_fk(
@@ -57,7 +59,7 @@ class Display_Debug_Msg:
             pointPositions=global_pos.tolist(),
             pointColorsRGB=[[1, 0, 0] for _ in global_pos.tolist()],
             pointSize=10,
-            lifeTime=0.95,
+            lifeTime=self.disp_life_time,
         )
 
     def disp_demonstrate_arm(self, index=None, l_arm=None, r_arm=None):
@@ -79,7 +81,7 @@ class Display_Debug_Msg:
                 lineToXYZ=t,
                 lineColorRGB=[1, 0, 1],
                 lineWidth=4,
-                lifeTime=0.95,
+                lifeTime=self.disp_life_time,
             )
 
     def disp_end_effector_oritation(
@@ -91,30 +93,30 @@ class Display_Debug_Msg:
             ee_matrix_l = quaternion1.as_matrix().tolist()
             ee_matrix_r = quaternion2.as_matrix().tolist()
         pybullet.addUserDebugLine(
-            lineFromXYZ=[-0.5, 0, 1],
+            lineFromXYZ=[0, 0.35, 1],
             lineToXYZ=[
-                i + j * 0.1
+                i + j * 0.3
                 for i, j in zip(
-                    [-0.5, 0, 1],
+                    [0, 0.35, 1],
                     [ee_matrix_l[0][0], ee_matrix_l[1][0], ee_matrix_l[2][0]],
                 )
             ],
             lineColorRGB=[0, 0, 1],
             lineWidth=4,
-            lifeTime=0.95,
+            lifeTime=self.disp_life_time,
         )
         pybullet.addUserDebugLine(
-            lineFromXYZ=[0.5, 0, 1],
+            lineFromXYZ=[0, -0.35, 1],
             lineToXYZ=[
-                i + j * 0.1
+                i + j * 0.3
                 for i, j in zip(
-                    [0.5, 0, 1],
+                    [0, -0.35, 1],
                     [ee_matrix_r[0][0], ee_matrix_r[1][0], ee_matrix_r[2][0]],
                 )
             ],
             lineColorRGB=[0, 0, 1],
             lineWidth=4,
-            lifeTime=0.95,
+            lifeTime=self.disp_life_time,
         )
 
     def print_loss_message(self, loss):
@@ -125,6 +127,25 @@ class Display_Debug_Msg:
                 loss[2],
                 loss[3],
             )
+        )
+
+    def print_human_demonstrate_arms(self, index):
+        # print arm joints' positions
+        logger.debug(
+            "Human right elbows position: "
+            + str(self.human_demonstrate["r_arm"][index][1])
+        )
+        logger.debug(
+            "Human right wrists position: "
+            + str(self.human_demonstrate["r_arm"][index][2])
+        )
+        logger.debug(
+            "Human left elbows position: "
+            + str(self.human_demonstrate["l_arm"][index][1])
+        )
+        logger.debug(
+            "Human left wrists position: "
+            + str(self.human_demonstrate["l_arm"][index][2])
         )
 
     def disp(
@@ -144,6 +165,7 @@ class Display_Debug_Msg:
             self.disp_end_effector_oritation(index, ee_matrix_l, ee_matrix_r)
         if self.debug_message["print_debug"]:
             self.print_loss_message(loss)
+            self.print_human_demonstrate_arms(index)
 
 
 class YuMi_Simulation:
@@ -151,6 +173,7 @@ class YuMi_Simulation:
         self,
         debug_message_cfg,
         disp_gui=True,
+        save_video_path=None,
         inferenced_file=None,
         demonstrate_file=None,
     ):
@@ -174,7 +197,7 @@ class YuMi_Simulation:
         )
         # Set camera
         pybullet.resetDebugVisualizerCamera(
-            cameraDistance=1.6,
+            cameraDistance=1.4,
             cameraYaw=85,
             cameraPitch=-20,
             cameraTargetPosition=[0, 0, 0.5],
@@ -196,8 +219,21 @@ class YuMi_Simulation:
             inferenced_file=self.inferenced_file,
             demonstrate_file=demonstrate_file,
         )
+        # Start video capturing
+        if (save_video_path is None) or (save_video_path == []):
+            self.save_video = False
+            self.save_video_path = []
+            self.video_id = None
+        else:
+            self.save_video = True
+            self.save_video_path = save_video_path
+            self.video_id = pybullet.startStateLogging(
+                pybullet.STATE_LOGGING_VIDEO_MP4, save_video_path
+            )
 
     def close_simulation(self):
+        if self.save_video:
+            pybullet.stopStateLogging(self.video_id)
         pybullet.disconnect(self.client)
         if self.inferenced_file is not None:
             self.inferenced_file.close()
@@ -251,9 +287,9 @@ class YuMi_Simulation:
                     bodyA=self.robot_id, linkIndexA=joint
                 ):
                     logger.error(
-                        "Collision Occurred in {} & {}!!!".format(
-                            str(self.all_joints_names[contact[3]])[2:],
-                            str(self.all_joints_names[contact[4]])[2:],
+                        "Collision Occurred between {} & {}".format(
+                            str(self.all_joints_names[contact[3]])[2:-1],
+                            str(self.all_joints_names[contact[4]])[2:-1],
                         )
                     )
                     pybullet.changeVisualShape(
@@ -298,16 +334,23 @@ def search_inferenced_files(path_name) -> list:
     h5_files = []
     for path, _, file_list in os.walk(path_name):
         for file in file_list:
-            if file.endswith(".h5"):
+            if file.endswith(".h5") and ("humanDemonstrate" not in file):
                 h5_files.append(os.path.join(path, file).replace("\\", "/"))
     return h5_files
 
 
 if __name__ == "__main__":
-    # Start log file
-    logger.add(sink="./saved/inferenced/simulation_{time}.log", rotation="5MB")
     inferenced_files = search_inferenced_files("./saved/inferenced")
+    log_folder = "./saved/log/simulation"
+    create_folder(log_folder)
     for file in inferenced_files:
+        base_file_name = os.path.basename(file)[:-3]
+        # Start log file
+        logger.add(
+            sink=log_folder + "simulation_" + base_file_name + ".log",
+            rotation="5MB",
+            encoding="utf-8",
+        )
         # Initialize the simulation
         yumi = YuMi_Simulation(
             debug_message_cfg={"draw_debug": False, "print_debug": True},
@@ -320,3 +363,4 @@ if __name__ == "__main__":
             yumi.step_simulation(index)
         # Stop the simulation
         yumi.close_simulation()
+        del yumi

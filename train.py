@@ -78,9 +78,8 @@ def train_epoch(model_params: Model_Params):
         # log
         if (batch_idx + 1) % model_params.interval == 0:
             logger.info(
-                "epoch {:03d} | it {:03d} | Sum {:.2f} | EE {:.2f} | Vec {:.2f}"
+                "it {:03d} | Sum {:.2f} | EE {:.2f} | Vec {:.2f}"
                 " | Col {:.2f} | Lim {:.2f} | Ori {:.2f} | Fin {:.2f} | Reg {:.2f}".format(
-                    epoch + 1,
                     batch_idx + 1,
                     losses.sum[-1],
                     losses.ee[-1],
@@ -114,7 +113,7 @@ def train_epoch(model_params: Model_Params):
     )
     end_time = time.time()
     logger.info(
-        "Epoch {:03d} | Training Time {:.2f} s | Avg Training {:.2f} | EE {:.2f} | Vec {:.2f} "
+        "Training Time {:.2f} s | Avg Training {:.2f} | EE {:.2f} | Vec {:.2f} "
         "| Col {:.2f} | Lim {:.2f} | Ori {:.2f} | Fin {:.2f} | Reg {:.2f}".format(
             epoch + 1,
             end_time - start_time,

@@ -174,7 +174,10 @@ def save_demonstrate_actions(save_file_name: str, test_loader):
         "r_hand": [],
         "ee_ori": [],
     }
-    for _, data_list in enumerate(test_loader):
+    for _, data_list in tqdm(
+        enumerate(test_loader),
+        total=len(test_loader),
+    ):
         human_demonstrate_data["l_arm"].append(data_list[0].pos[:3].tolist())
         human_demonstrate_data["r_arm"].append(data_list[0].pos[3:].tolist())
         human_demonstrate_data["l_hand"].append(data_list[0].l_hand_pos.tolist())
@@ -197,10 +200,9 @@ if __name__ == "__main__":
     # Save source data
     if cfg.INFERENCE.RUN.HUMAN_DEMONSTRATE:
         logger.debug("Scanning source data...")
-        save_demonstrate_actions(
-            cfg.INFERENCE.H5.PATH + "humanDemonstrate.h5", inference.test_loader
-        )
-        logger.debug("Saved source data...")
+        file_name = cfg.INFERENCE.H5.PATH + "humanDemonstrate.h5"
+        save_demonstrate_actions(file_name, inference.test_loader)
+        logger.debug("Saved demonstrate data to file:" + file_name)
     # Inference
     if cfg.INFERENCE.RUN.INFERENCE:
         # Start simulation

@@ -23,9 +23,8 @@ def log_data(
         writer.add_scalars("regularization_loss", {"test": loss.reg}, epoch + 1)
     end_time = time.time()
     logger.info(
-        "Epoch {:03d} | Testing Time {:.2f} s | Avg Testing {:.2f} | EE {:.2f} | "
+        "Testing Time {:.2f} s | Avg Testing {:.2f} | EE {:.2f} | "
         "Vec {:.2f} | Col {:.2f} | Lim {:.2f} | Ori {:.2f} | Fin {:.2f} | Reg {:.2f}".format(
-            epoch + 1,
             end_time - start_time,
             loss.sum,
             loss.ee,
