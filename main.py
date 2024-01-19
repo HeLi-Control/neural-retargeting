@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch_geometric.loader import DataListLoader
@@ -45,7 +46,10 @@ def save_model(
     logger.info("Epoch {} Model Saved".format(epoch_now + 1))
 
 
-def get_model_params(train_loader, train_target, device, cfg):
+def get_model_params(train_loader, train_target, device: torch.device, cfg):
+    def mse(x: torch.Tensor, y: torch.Tensor):
+        return torch.mean(torch.tensor([torch.norm(e).pow(2) for e in (x - y)]))
+
     from models import model
 
     train_model = getattr(model, cfg.MODEL.NAME)().to(device)
@@ -53,12 +57,12 @@ def get_model_params(train_loader, train_target, device, cfg):
         model=train_model,
         optimizer=optim.Adam(train_model.parameters(), lr=cfg.HYPER.LEARNING_RATE),
         loss_criterion=Loss(
-            ee=nn.MSELoss() if cfg.LOSS.EE else None,
-            vec=nn.MSELoss() if cfg.LOSS.VEC else None,
+            ee=mse if cfg.LOSS.EE else None,
+            vec=mse if cfg.LOSS.VEC else None,
             col=CollisionLoss(cfg.LOSS.COL_THRESHOLD) if cfg.LOSS.COL else None,
             lim=JointLimitLoss() if cfg.LOSS.LIM else None,
-            ori=nn.MSELoss() if cfg.LOSS.ORI else None,
-            fin=nn.MSELoss() if cfg.LOSS.FIN else None,
+            ori=mse if cfg.LOSS.ORI else None,
+            fin=mse if cfg.LOSS.FIN else None,
             reg=RegLoss() if cfg.LOSS.REG else None,
         ),
         loader=train_loader,
@@ -73,9 +77,6 @@ def get_model_params(train_loader, train_target, device, cfg):
     )
     return model_params
 
-
-# Device setting
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 if __name__ == "__main__":
     # Search for all yaml files in the path
@@ -154,7 +155,12 @@ if __name__ == "__main__":
         for times in range(cfg.HYPER.TRAIN_TIMES):
             logger.info("Times:{}".format(times + 1))
             # set model params
-            model_params = get_model_params(train_loader, train_target, device, cfg)
+            model_params = get_model_params(
+                train_loader,
+                train_target,
+                torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+                cfg,
+            )
             if cfg.MODEL.LOAD_CHECKPOINT:
                 if cfg.MODEL.CHECKPOINT_RANDOM:
                     checkpoints = []
@@ -176,9 +182,11 @@ if __name__ == "__main__":
             # Create folder
             save = cfg.OTHERS.SAVE + "/{}".format(times + 1)
             summary = cfg.OTHERS.SUMMARY + "/{}".format(times + 1)
+            log = cfg.OTHERS.LOG + "/{}".format(times + 1)
             create_folder(save)
             create_folder(summary)
-            logger.add(sink=save + "/train_{time}.log", rotation="5MB", encoding='utf-8')
+            create_folder(log)
+            logger.add(sink=log + "/train_{time}.log", rotation="5MB")
             model_params.writer = SummaryWriter(
                 os.path.join(summary, "{:%Y-%m-%d_%H-%M-%S}".format(datetime.now()))
             )
@@ -187,6 +195,7 @@ if __name__ == "__main__":
             # train
             for epoch in range(cfg.HYPER.EPOCHS):
                 model_params.epoch = epoch
+                logger.info("Epoch " + str(epoch + 1))
                 # Set learning rate
                 model_params.optimizer.lr = (
                     get_varying_learning_rate(

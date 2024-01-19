@@ -13,7 +13,7 @@ def log_data(
     start_time: float,
 ):
     if writer is not None:
-        writer.add_scalars("testing_loss", {"test": loss.sum}, epoch + 1)
+        writer.add_scalars("sum_loss", {"test": loss.sum}, epoch + 1)
         writer.add_scalars("end_effector_loss", {"test": loss.ee}, epoch + 1)
         writer.add_scalars("vector_loss", {"test": loss.vec}, epoch + 1)
         writer.add_scalars("collision_loss", {"test": loss.col}, epoch + 1)
@@ -52,7 +52,6 @@ def record_actions(arm_data, hand_data, inferenced_data):
 
 def test_epoch(model_params: Model_Params, test_info_all=False, record_actions=False):
     epoch = model_params.epoch
-    logger.info("Testing Epoch {}".format(epoch + 1))
     start_time = time.time()
 
     model_params.model.eval()

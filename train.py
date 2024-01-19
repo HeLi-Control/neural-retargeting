@@ -36,7 +36,6 @@ class Model_Params:
 
 def train_epoch(model_params: Model_Params):
     epoch = model_params.epoch
-    logger.info("Training Epoch {}".format(epoch + 1))
     start_time = time.time()
 
     model_params.model.train()
@@ -101,7 +100,7 @@ def train_epoch(model_params: Model_Params):
     fin_loss = sum(losses.fin) / len(losses.fin)
     reg_loss = sum(losses.reg) / len(losses.reg)
     # Log
-    model_params.writer.add_scalars("training_loss", {"train": train_loss}, epoch + 1)
+    model_params.writer.add_scalars("sum_loss", {"train": train_loss}, epoch + 1)
     model_params.writer.add_scalars("end_effector_loss", {"train": ee_loss}, epoch + 1)
     model_params.writer.add_scalars("vector_loss", {"train": vec_loss}, epoch + 1)
     model_params.writer.add_scalars("collision_loss", {"train": col_loss}, epoch + 1)
@@ -115,7 +114,6 @@ def train_epoch(model_params: Model_Params):
     logger.info(
         "Training Time {:.2f} s | Avg Training {:.2f} | EE {:.2f} | Vec {:.2f} "
         "| Col {:.2f} | Lim {:.2f} | Ori {:.2f} | Fin {:.2f} | Reg {:.2f}".format(
-            epoch + 1,
             end_time - start_time,
             train_loss,
             ee_loss,

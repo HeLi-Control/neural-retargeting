@@ -10,4 +10,4 @@ DATASET:
     TARGET_NAME: "YumiAll"
     TARGET_PATH: "./data/target/yumi-all"
 OTHERS:
-  LOG_INTERVAL: 49
+  LOG_INTERVAL: 1000000

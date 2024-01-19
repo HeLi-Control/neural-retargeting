@@ -185,14 +185,13 @@ class Display_Debug_Msg:
         r_arm_demonstrate=None,
         ee_matrix_l=None,
         ee_matrix_r=None,
-        loss=None,
     ):
         if self.debug_message["draw_debug"]:
             self.disp_forward_kinematics(index, l_arm_ang, r_arm_ang)
             self.disp_demonstrate_arm(index, l_arm_demonstrate, r_arm_demonstrate)
             self.disp_end_effector_orientation(index, ee_matrix_l, ee_matrix_r)
         if self.debug_message["print_debug"]:
-            self.print_loss_message(loss)
+            self.print_loss_message(self.inferenced_file["loss"][index].tolist())
             self.print_human_demonstrate_arms(index)
 
 
@@ -296,9 +295,7 @@ class YuMi_Simulation:
         # Collision check
         self.collision_check()
         # Display debug messages
-        self.debug_msg_disp.disp(
-            index, loss=self.inferenced_file["loss"][index].tolist()
-        )
+        self.debug_msg_disp.disp(index)
 
     def collision_check(self):
         for joint in self.available_joints_indices:

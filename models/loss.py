@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from kornia.geometry.conversions import quaternion_to_rotation_matrix
+from kornia.geometry.conversions import rotation_matrix_to_quaternion
 from models.model import Return_Arm_Data, Return_Hand_Data
 
 
@@ -154,32 +154,34 @@ def calculate_ee_loss(data_list, target_list, arm_pos, criterion) -> torch.Tenso
 
 def calculate_vec_loss(data_list, target_list, target_pos, criterion) -> torch.Tensor:
     """
-    Calculate Vector Loss
+    Calculate Arm Vector Loss
     """
     device = target_pos.device
     # get masks
+    target_sh_mask = torch.cat([data.sh_mask for data in target_list]).to(device)
     target_el_mask = torch.cat([data.el_mask for data in target_list]).to(device)
     target_ee_mask = torch.cat([data.ee_mask for data in target_list]).to(device)
+    source_sh_mask = torch.cat([data.sh_mask for data in data_list]).to(device)
     source_el_mask = torch.cat([data.el_mask for data in data_list]).to(device)
     source_ee_mask = torch.cat([data.ee_mask for data in data_list]).to(device)
     # get the desired joints' position
+    target_sh = torch.masked_select(target_pos, target_sh_mask).view(-1, 3)
     target_el = torch.masked_select(target_pos, target_el_mask).view(-1, 3)
     target_ee = torch.masked_select(target_pos, target_ee_mask).view(-1, 3)
     source_pos = torch.cat([data.pos for data in data_list]).to(device)
+    source_sh = torch.masked_select(source_pos, source_sh_mask).view(-1, 3)
     source_el = torch.masked_select(source_pos, source_el_mask).view(-1, 3)
     source_ee = torch.masked_select(source_pos, source_ee_mask).view(-1, 3)
-    # calculate elbow to end effector vector
-    target_vector = target_ee - target_el
-    source_vector = source_ee - source_el
+    # calculate shoulder-elbow and elbow-wrist vectors
+    target_sh2el_vector = target_el - target_sh
+    source_sh2el_vector = source_el - source_sh
+    target_el2ee_vector = target_ee - target_el
+    source_el2ee_vector = source_ee - source_el
+    target_vectors = torch.cat([target_sh2el_vector, target_el2ee_vector], dim=0)
+    source_vectors = torch.cat([source_sh2el_vector, source_el2ee_vector], dim=0)
     # normalize
-    target_elbow_dist = (
-        torch.cat([data.elbow_dist for data in target_list]).to(device) / 2
-    )
-    source_elbow_dist = (
-        torch.cat([data.elbow_dist for data in data_list]).to(device) / 2
-    )
-    target_vector /= torch.masked_select(target_elbow_dist, target_ee_mask).unsqueeze(1)
-    source_vector /= torch.masked_select(source_elbow_dist, source_ee_mask).unsqueeze(1)
+    target_vector = torch.stack([v / torch.norm(v) for v in target_vectors])
+    source_vector = torch.stack([v / torch.norm(v) for v in source_vectors])
     vec_loss = criterion(target_vector, source_vector)
     return vec_loss
 
@@ -202,12 +204,11 @@ def calculate_ori_loss(data_list, target_list, target_rot, criterion) -> torch.T
     # get masks
     target_mask = torch.cat([data.ee_mask for data in target_list]).to(device)
     source_mask = torch.cat([data.ee_mask for data in data_list]).to(device)
-    # calculate the rotation matrix vector
-    target_rot = target_rot.view(-1, 9)
-    source_quaternion = torch.cat([data.q for data in data_list]).to(device)
-    source_rot = quaternion_to_rotation_matrix(source_quaternion).view(-1, 9)
-    target_ori = torch.masked_select(target_rot, target_mask)
-    source_ori = torch.masked_select(source_rot, source_mask)
+    # calculate the quaternions
+    target_quaternion = rotation_matrix_to_quaternion(target_rot).view(-1, 4)
+    source_quaternion = torch.cat([data.q for data in data_list]).to(device).view(-1, 4)
+    target_ori = torch.masked_select(target_quaternion, target_mask)
+    source_ori = torch.masked_select(source_quaternion, source_mask)
     ori_loss = criterion(target_ori, source_ori)
     return ori_loss
 
