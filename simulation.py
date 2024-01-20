@@ -114,66 +114,78 @@ class Display_Debug_Msg:
             lifeTime=self.disp_life_time,
         )
 
-    def print_loss_message(self, loss):
+    def print_loss_message(self):
         logger.info(
             "EE {:.2f} | Vec {:.2f}| Ori {:.2f} | Fin {:.2f}".format(
-                loss[0],
-                loss[1],
-                loss[2],
-                loss[3],
+                self.inferenced_file["loss"][index][0],
+                self.inferenced_file["loss"][index][1],
+                self.inferenced_file["loss"][index][2],
+                self.inferenced_file["loss"][index][3],
             )
         )
 
     def print_human_demonstrate_arms(self, index):
-        # print demonstrate arm joints' positions
-        logger.debug(
-            "Human right shoulder-elbow vector: "
-            + str(
-                self.human_demonstrate["r_arm"][index][1]
-                - self.human_demonstrate["r_arm"][index][0]
-            )
-        )
-        logger.debug(
-            "Human right shoulder-wrist vector: "
-            + str(
-                self.human_demonstrate["r_arm"][index][2]
-                - self.human_demonstrate["r_arm"][index][0]
-            )
-        )
-        logger.debug(
-            "Human left shoulder-elbow vector: "
-            + str(
-                self.human_demonstrate["l_arm"][index][1]
-                - self.human_demonstrate["l_arm"][index][0]
-            )
-        )
-        logger.debug(
-            "Human left shoulder-wrist vector: "
-            + str(
-                self.human_demonstrate["l_arm"][index][2]
-                - self.human_demonstrate["l_arm"][index][0]
-            )
-        )
-        # print robot arm joints' positions
         global_pos = self.__calc_hand_forward_kinematics(
             torch.tensor(self.inferenced_file["l_arm"][index]),
             torch.tensor(self.inferenced_file["r_arm"][index]),
         )
+
+        def norm_vector(v: list) -> list:
+            x = torch.tensor(v).float()
+            norm_x = x / torch.norm(x)
+            return norm_x.tolist()
+
         logger.debug(
-            "Robot right shoulder-elbow vector: "
-            + str((global_pos[11] - global_pos[7]).tolist())
+            "Human right shoulder-elbow direction vector: "
+            + str(
+                norm_vector(
+                    self.human_demonstrate["r_arm"][index][1]
+                    - self.human_demonstrate["r_arm"][index][0]
+                )
+            )
         )
         logger.debug(
-            "Robot right shoulder-wrist vector: "
-            + str((global_pos[13] - global_pos[7]).tolist())
+            "Robot right shoulder-elbow direction vector: "
+            + str(norm_vector(global_pos[11] - global_pos[7]))
         )
         logger.debug(
-            "Robot left shoulder-elbow vector: "
-            + str((global_pos[4] - global_pos[0]).tolist())
+            "Human right elbow-wrist direction vector: "
+            + str(
+                norm_vector(
+                    self.human_demonstrate["r_arm"][index][2]
+                    - self.human_demonstrate["r_arm"][index][1]
+                )
+            )
         )
         logger.debug(
-            "Robot left shoulder-wrist vector: "
-            + str((global_pos[6] - global_pos[0]).tolist())
+            "Robot right elbow-wrist direction vector: "
+            + str(norm_vector(global_pos[13] - global_pos[11]))
+        )
+        logger.debug(
+            "Human left shoulder-elbow direction vector: "
+            + str(
+                norm_vector(
+                    self.human_demonstrate["l_arm"][index][1]
+                    - self.human_demonstrate["l_arm"][index][0]
+                )
+            )
+        )
+        logger.debug(
+            "Robot left shoulder-elbow direction vector: "
+            + str(norm_vector(global_pos[4] - global_pos[0]))
+        )
+        logger.debug(
+            "Human left elbow-wrist direction vector: "
+            + str(
+                norm_vector(
+                    self.human_demonstrate["l_arm"][index][2]
+                    - self.human_demonstrate["l_arm"][index][1]
+                )
+            )
+        )
+        logger.debug(
+            "Robot left elbow-wrist direction vector: "
+            + str(norm_vector(global_pos[6] - global_pos[4]))
         )
 
     def disp(
@@ -191,7 +203,7 @@ class Display_Debug_Msg:
             self.disp_demonstrate_arm(index, l_arm_demonstrate, r_arm_demonstrate)
             self.disp_end_effector_orientation(index, ee_matrix_l, ee_matrix_r)
         if self.debug_message["print_debug"]:
-            self.print_loss_message(self.inferenced_file["loss"][index].tolist())
+            self.print_loss_message()
             self.print_human_demonstrate_arms(index)
 
 

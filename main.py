@@ -79,36 +79,38 @@ def get_model_params(train_loader, train_target, device: torch.device, cfg):
 
 
 if __name__ == "__main__":
+    # Argument parse
+    parser = argparse.ArgumentParser(description="Command line arguments")
+    parser.add_argument(
+        "--cfg",
+        type=str,
+        help="Path to configuration file",
+    )
+    args = parser.parse_args()
+    cfg.merge_from_file("configs/global.yaml")
+    cfg.merge_from_file("configs/train/train.yaml")
     # Search for all yaml files in the path
     yaml_path = "configs/train/"
     logger.debug("Scanning processed files...")
-    train_yaml = None
-    global_yaml = "configs/global.yaml"
     params_yaml_files = []
     paths = os.walk(yaml_path)
     for path, dir_list, file_list in paths:
         for file in file_list:
-            if file.endswith("train.yaml"):
-                train_yaml = os.path.join(path, file).replace("\\", "/")
-            elif file.endswith(".yaml"):
-                params_yaml_files.append(os.path.join(path, file).replace("\\", "/"))
+            if cfg.TRAIN.READ_SPECIFIC_YAML:
+                if cfg.TRAIN.SPECIFIC_YAML_NAME in file:
+                    params_yaml_files.append(
+                        os.path.join(path, file).replace("\\", "/")
+                    )
+            else:
+                if file.endswith(".yaml") and not file.endswith("train.yaml"):
+                    params_yaml_files.append(
+                        os.path.join(path, file).replace("\\", "/")
+                    )
     # For all yaml files train a new net
     for yaml_file in params_yaml_files:
         logger.info("Read from yaml file:" + yaml_file)
 
-        # Argument parse
-        parser = argparse.ArgumentParser(description="Command line arguments")
-        parser.add_argument(
-            "--cfg",
-            default=yaml_file,
-            type=str,
-            help="Path to configuration file",
-        )
-        args = parser.parse_args()
-        # Configurations parse
-        cfg.merge_from_file(global_yaml)
-        cfg.merge_from_file(train_yaml)
-        cfg.merge_from_file(args.cfg)
+        cfg.merge_from_file(yaml_file)
         cfg.freeze()
 
         # Load data

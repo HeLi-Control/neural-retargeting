@@ -11,3 +11,6 @@ DATASET:
     TARGET_PATH: "./data/target/yumi-all"
 OTHERS:
   LOG_INTERVAL: 1000000
+TRAIN:
+  READ_SPECIFIC_YAML: True
+  SPECIFIC_YAML_NAME: "yumi3.yaml"
