@@ -88,10 +88,18 @@ if __name__ == "__main__":
     paths = os.walk(yaml_path)
     for path, dir_list, file_list in paths:
         for file in file_list:
-            if file.endswith("train.yaml"):
-                train_yaml = os.path.join(path, file).replace("\\", "/")
-            elif file.endswith(".yaml"):
-                params_yaml_files.append(os.path.join(path, file).replace("\\", "/"))
+            if cfg.TRAIN.READ_SPECIFIC_YAML:
+                if cfg.TRAIN.SPECIFIC_YAML_NAME in file:
+                    params_yaml_files.append(
+                        os.path.join(path, file).replace("\\", "/")
+                    )
+            else:
+                if file.endswith("train.yaml"):
+                    train_yaml = os.path.join(path, file).replace("\\", "/")
+                elif file.endswith(".yaml"):
+                    params_yaml_files.append(
+                        os.path.join(path, file).replace("\\", "/")
+                    )
     # For all yaml files train a new net
     for yaml_file in params_yaml_files:
         logger.info("Read from yaml file:" + yaml_file)
